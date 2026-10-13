@@ -1,4 +1,11 @@
-import { type CitationProblem, type CitedAnswer, MIN_QUOTE_CHARS, type Quote, type SourceRef } from "./citations.ts";
+import {
+  type CitationProblem,
+  type CitedAnswer,
+  MIN_QUOTE_CHARS,
+  type ProjectFact,
+  type Quote,
+  type SourceRef,
+} from "./citations.ts";
 import type { SearchHit } from "./search.ts";
 
 const CLARIFY_HINT = "Уточните вопрос: назовите раздел, термин или пример, о котором идёт речь.";
@@ -24,6 +31,8 @@ export function describeCitationProblem(problem: CitationProblem): string {
       return `цитата [${problem.fragment}] не найдена во фрагменте ${problem.fragment}`;
     case "quote-too-short":
       return `цитата [${problem.fragment}] короче ${MIN_QUOTE_CHARS} символов`;
+    case "tool-not-called":
+      return `инструмент ${problem.tool} в этом ответе не вызывался`;
   }
 }
 
@@ -44,9 +53,14 @@ function quoteLine({ fragment, text, hit, verified }: Quote): string {
   return `- [${fragment}] «${text}» — ${status}`;
 }
 
+const factLine = ({ tool, text, called }: ProjectFact): string =>
+  `- ${tool}: ${text}${called ? "" : " — инструмент не вызывался"}`;
+
 function renderAnswer(answer: Extract<CitedAnswer, { kind: "answer" }>): string[] {
+  const facts = answer.projectData.length > 0 ? ["", "Данные проекта:", ...answer.projectData.map(factLine)] : [];
   return [
     answer.text,
+    ...facts,
     "",
     ...(answer.sources.length > 0 ? ["Источники:", ...answer.sources.map(sourceLine)] : ["Источники: нет"]),
     "",

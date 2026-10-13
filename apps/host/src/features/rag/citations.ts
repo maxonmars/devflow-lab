@@ -16,11 +16,14 @@ export type CitationProblem =
   | Readonly<{ code: "unknown-fragment"; fragment: number }>
   | Readonly<{ code: "source-without-quote"; fragment: number }>
   | Readonly<{ code: "quote-not-found"; fragment: number }>
-  | Readonly<{ code: "quote-too-short"; fragment: number }>;
+  | Readonly<{ code: "quote-too-short"; fragment: number }>
+  | Readonly<{ code: "tool-not-called"; tool: string }>;
 
 /** `hit` — фрагмент с `rank`, равным номеру; `undefined`, если такого номера в контексте не было. */
 export type SourceRef = Readonly<{ fragment: number; hit: SearchHit | undefined }>;
 export type Quote = Readonly<{ fragment: number; text: string; hit: SearchHit | undefined; verified: boolean }>;
+/** Строка раздела «Данные проекта»; `called` — инструмент действительно вызывался при этом ответе. */
+export type ProjectFact = Readonly<{ tool: string; text: string; called: boolean }>;
 
 export type CitedAnswer =
   | Readonly<{
@@ -28,6 +31,7 @@ export type CitedAnswer =
       text: string;
       sources: readonly SourceRef[];
       quotes: readonly Quote[];
+      projectData: readonly ProjectFact[];
       problems: readonly CitationProblem[];
       raw: string;
     }>
@@ -42,9 +46,11 @@ export type CitedAnswer =
   | Readonly<{ kind: "unknown"; by: "retrieval"; threshold: number | null; nearest: readonly SearchHit[] }>;
 
 const ANSWER_HEADINGS: readonly string[] = ["Ответ", "Источники", "Цитаты"];
+const PROJECT_DATA_HEADING = "Данные проекта";
 const REFUSAL_HEADINGS: readonly string[] = ["Не знаю", "Уточнение"];
 const SOURCE_LINE = /^\s*[-*]\s*\[(\d+)\]/;
 const QUOTE_LINE = /^\s*[-*]\s*\[(\d+)\]\s*(.+?)\s*$/;
+const FACT_LINE = /^\s*[-*]\s*`?([\w-]+)`?\s*:\s*(.+?)\s*$/;
 const OPENING_QUOTE = /^[«“"„]/;
 const CLOSING_QUOTE = /[»”"]$/;
 
@@ -98,14 +104,30 @@ function parseQuotes(body: string, hits: readonly SearchHit[]): Quote[] {
   });
 }
 
+function parseFacts(body: string, calledTools: readonly string[]): ProjectFact[] {
+  return body.split("\n").flatMap((line) => {
+    const [, tool, text] = FACT_LINE.exec(line) ?? [];
+    return tool === undefined || text === undefined ? [] : [{ tool, text, called: calledTools.includes(tool) }];
+  });
+}
+
+type ParsedAnswer = Readonly<{
+  sources: readonly SourceRef[];
+  quotes: readonly Quote[];
+  facts: readonly ProjectFact[];
+}>;
+
 function answerProblems(
   sections: readonly Section[],
-  sources: readonly SourceRef[],
-  quotes: readonly Quote[],
+  parsed: ParsedAnswer,
+  allowed: readonly string[],
 ): CitationProblem[] {
-  const problems = unexpectedSections(sections, ANSWER_HEADINGS);
-  if (sources.length === 0) problems.push({ code: "no-sources" });
-  if (quotes.length === 0) problems.push({ code: "no-quotes" });
+  const { sources, quotes, facts } = parsed;
+  const problems = unexpectedSections(sections, allowed);
+  // Ответ только по данным инструментов фрагментов не цитирует: источники и цитаты тогда необязательны.
+  if (sources.length === 0 && facts.length === 0) problems.push({ code: "no-sources" });
+  if (quotes.length === 0 && facts.length === 0) problems.push({ code: "no-quotes" });
+  for (const fact of facts) if (!fact.called) problems.push({ code: "tool-not-called", tool: fact.tool });
   const unknown = new Set<number>();
   for (const { fragment, hit } of [...sources, ...quotes]) if (hit === undefined) unknown.add(fragment);
   for (const fragment of unknown) problems.push({ code: "unknown-fragment", fragment });
@@ -124,15 +146,23 @@ function answerProblems(
   return problems;
 }
 
-function parseAnswer(raw: string, sections: readonly Section[], hits: readonly SearchHit[]): CitedAnswer {
+function parseAnswer(
+  raw: string,
+  sections: readonly Section[],
+  hits: readonly SearchHit[],
+  calledTools: readonly string[] | undefined,
+): CitedAnswer {
   const sources = parseSources(bodyOf(sections, "Источники"), hits);
   const quotes = parseQuotes(bodyOf(sections, "Цитаты"), hits);
+  const facts = calledTools === undefined ? [] : parseFacts(bodyOf(sections, PROJECT_DATA_HEADING), calledTools);
+  const allowed = calledTools === undefined ? ANSWER_HEADINGS : [...ANSWER_HEADINGS, PROJECT_DATA_HEADING];
   return {
     kind: "answer",
     text: bodyOf(sections, "Ответ"),
     sources,
     quotes,
-    problems: answerProblems(sections, sources, quotes),
+    projectData: facts,
+    problems: answerProblems(sections, { sources, quotes, facts }, allowed),
     raw,
   };
 }
@@ -144,15 +174,23 @@ function parseRefusal(raw: string, sections: readonly Section[]): CitedAnswer {
   return { kind: "unknown", by: "model", text: bodyOf(sections, "Не знаю"), clarification, problems, raw };
 }
 
-/** Разбирает ответ модели по разделам; ссылке `[N]` соответствует фрагмент с `rank` N. Нарушения формата возвращаются в `problems`, а не бросаются. */
-export function parseCitedAnswer(raw: string, hits: readonly SearchHit[]): CitedAnswer {
+/**
+ * Разбирает ответ модели по разделам; ссылке `[N]` соответствует фрагмент с `rank` N. Нарушения формата возвращаются
+ * в `problems`, а не бросаются. `calledTools` задан только для ответа с инструментами: тогда разрешён «Данные проекта».
+ */
+export function parseCitedAnswer(
+  raw: string,
+  hits: readonly SearchHit[],
+  calledTools?: readonly string[],
+): CitedAnswer {
   const sections = splitSections(raw);
   const answers = sections.some((section) => section.heading === "Ответ");
   const refuses = sections.some((section) => section.heading === "Не знаю");
   if (answers === refuses) {
-    return { kind: "answer", text: raw.trim(), sources: [], quotes: [], problems: [{ code: "format" }], raw };
+    const problems = [{ code: "format" as const }];
+    return { kind: "answer", text: raw.trim(), sources: [], quotes: [], projectData: [], problems, raw };
   }
-  return refuses ? parseRefusal(raw, sections) : parseAnswer(raw, sections, hits);
+  return refuses ? parseRefusal(raw, sections) : parseAnswer(raw, sections, hits, calledTools);
 }
 
 /** Отказ без вызова модели: после отбора не осталось фрагментов; `threshold` — `null` в режимах без порога. */

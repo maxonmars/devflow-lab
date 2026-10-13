@@ -19,5 +19,6 @@ function fragment(hit: SearchHit): string {
 
 /** Сообщение пользователя в режиме RAG: найденные фрагменты, затем вопрос; инструкции модели здесь нет. */
 export function renderRagMessage(question: string, hits: readonly SearchHit[]): string {
-  return ["## Фрагменты документации", ...hits.map(fragment), `## Вопрос\n\n${question}`].join("\n\n");
+  const fragments = hits.length > 0 ? hits.map(fragment) : ["Подходящих фрагментов нет."];
+  return ["## Фрагменты документации", ...fragments, `## Вопрос\n\n${question}`].join("\n\n");
 }
