@@ -52,7 +52,8 @@ export async function invoke(argv: string[], options: InvokeOptions) {
     env: { ...(options.authenticated === false ? {} : { LAB_LLM_API_KEY: "test-key" }), ...options.env },
     createModel,
     createEmbeddings,
-    ...(options.mcpServers ? { mcpServers: options.mcpServers } : {}),
+    nodeExecutable: "node",
+    mcpServers: options.mcpServers ?? (() => []),
     ...(options.withToolSource ? { withToolSource: options.withToolSource } : {}),
     terminal: {
       input: Readable.from([options.input ?? ""]),

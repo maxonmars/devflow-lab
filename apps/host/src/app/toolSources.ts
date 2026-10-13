@@ -3,10 +3,10 @@ import type { ToolDefinition, ToolSource } from "../core/index.ts";
 import type { StdioToolSourceOptions } from "../features/mcp/index.ts";
 
 /** Открывает MCP-сессию на время `use`; реализация по умолчанию — `withStdioToolSource`, в тестах — подмена. */
-export type WithToolSource = (
+export type WithToolSource = <T>(
   options: StdioToolSourceOptions,
-  use: (source: ToolSource) => Promise<string>,
-) => Promise<string>;
+  use: (source: ToolSource) => Promise<T>,
+) => Promise<T>;
 
 type ToolStatusView = Pick<CliView, "mcpToolStatus">;
 
@@ -53,13 +53,13 @@ export function observedToolSource(source: ToolSource, view: ToolStatusView, ser
 }
 
 /** Открывает сессии по одной, вложенно: каждая закрывается в finally своего `open`. */
-export function withSessions(
+export function withSessions<T>(
   servers: readonly StdioToolSourceOptions[],
   open: WithToolSource,
   view: ToolStatusView,
-  use: (sources: readonly ToolSource[]) => Promise<string>,
+  use: (sources: readonly ToolSource[]) => Promise<T>,
   opened: readonly ToolSource[] = [],
-): Promise<string> {
+): Promise<T> {
   const [next, ...rest] = servers;
   if (!next) return use(opened);
   return open(next, (source) =>

@@ -8,6 +8,7 @@ import type { CreateEmbeddings } from "./embeddings.ts";
 import { type CreateModel, type ModelOptions, modelLabel } from "./model.ts";
 import { createRagHandlers } from "./rag.ts";
 import { createRagAnswerHandlers } from "./ragAnswer.ts";
+import { gitServer } from "./serverEntrypoints.ts";
 import type { WithToolSource } from "./toolSources.ts";
 
 export type RunOptions = Readonly<{
@@ -17,7 +18,9 @@ export type RunOptions = Readonly<{
   terminal: Terminal;
   createModel?: CreateModel;
   createEmbeddings?: CreateEmbeddings;
-  /** MCP-серверы для `ask`; по умолчанию серверов нет. */
+  /** Node для запуска MCP-серверов; main.ts передаёт process.execPath. */
+  nodeExecutable: string;
+  /** MCP-серверы для `ask`; по умолчанию — git-сервер с корнем `project.root`. */
   mcpServers?: McpServers;
   withToolSource?: WithToolSource;
 }>;
@@ -39,7 +42,7 @@ export async function run(options: RunOptions): Promise<number> {
       createModel,
       getConfig,
       view,
-      servers: options.mcpServers ?? (() => []),
+      servers: options.mcpServers ?? ((current) => [gitServer(current, cwd, options.nodeExecutable)]),
       withToolSource: options.withToolSource ?? withStdioToolSource,
     }),
     modelLabel: () => modelLabel(config),
