@@ -6,7 +6,8 @@
 (MCP-клиент) без общих пакетов (ADR 0001).
 Реализованы: RAG по документации проекта — корпус из `rag.include` внутри `project.root` (по умолчанию сам репозиторий),
 чанкинг по структуре Markdown, эмбеддинги Ollama, ответ с источниками, цитатами и «не знаю» (`rag index`, `rag ask`);
-`ask` с циклом инструментов MCP-серверов, открываемых на реплику. MCP-серверов пока нет, `servers/` пуст.
+git MCP-сервер с читающими инструментами (`servers/git`); `ask` и ассистент проекта `help <вопрос>` — RAG по
+документации плюс git-инструменты, которые модель вызывает сама (ADR 0002).
 Задания выдаются по одному; docs/course.md — ориентир недели, он не разрешает реализовывать будущие задания заранее.
 Перед заданием сформулируй учебную цель и минимальный результат; улучшения отдели явно.
 
@@ -16,10 +17,10 @@
 | apps/host/src/core | Agent с циклом инструментов, ModelPort, ToolSource, типизированные ошибки |
 | apps/host/src/adapters/llm | DeepSeek и локальный OpenAI-совместимый сервер через SDK `openai` |
 | apps/host/src/adapters/cli | Ввод, dispatch, REPL, отображение результатов и ошибок |
-| apps/host/src/app | Единственная композиция host, реестры, Markdown-инструкции, MCP-сессии `ask` |
-| apps/host/src/features/rag | Корпус проекта, чанкинг, эмбеддинги Ollama, индекс, поиск, rewrite, отбор, ответ с цитатами |
+| apps/host/src/app | Единственная композиция host, реестры, Markdown-инструкции, MCP-сессии `ask` и `help` |
+| apps/host/src/features/rag | Корпус проекта, чанкинг, эмбеддинги Ollama, индекс, поиск, rewrite, отбор, ответ с цитатами и инструментами |
 | apps/host/src/features/mcp | stdio-клиент MCP: `withStdioToolSource` → ToolSource |
-| servers | Самостоятельные npm workspaces MCP-серверов; появляются по заданиям |
+| servers/git | MCP-сервер: ветка, статус, diff, отслеживаемые файлы корня проекта; только чтение |
 | docs/adr, docs/demos | Решения и короткие ручные демонстрации |
 | tooling | Архитектурные проверки, генерация документации, сборка |
 
@@ -44,9 +45,10 @@ ToolExecutor, хранилища) — только через ADR с конкр�
 - Режим поиска (`rag.retrievalMode`): `baseline`, `filter`, `rewrite`, `rewrite-filter`; по умолчанию `rewrite-filter`.
 - Кандидаты: результат поиска до отбора (`rag.candidateTopK`); порог — `rag.similarityThreshold`, top-K — `rag.topK`.
 - Цитата: строка `- [N] «текст»`; засчитывается, если после нормализации это подстрока текста чанка `[N]`.
-- «Не знаю»: ответ без источников; при пустом отборе формирует код без вызова модели.
-- MCP-сессия: процесс сервера и клиент на одну реплику `ask`; ToolSource — её вид для Agent.
-- Лимит вызовов (`ASK_MAX_TOOL_CALLS`): сколько вызовов инструментов Agent исполнит за реплику.
+- «Не знаю»: ответ без источников; в `rag ask` при пустом отборе формирует код без вызова модели.
+- MCP-сессия: процесс сервера и клиент на одну реплику `ask` или `help`; ToolSource — её вид для Agent.
+- Ассистент проекта: `help <вопрос>` — фрагменты документации и git-инструменты; факты инструментов — раздел «Данные проекта».
+- Лимит вызовов: `ASK_MAX_TOOL_CALLS` (6) в `ask`, `HELP_MAX_TOOL_CALLS` (4) в `help`; исполняет Agent.
 - Провайдер модели (`llm.provider`): `deepseek` или `local`; эмбеддинги от него не зависят.
 - Agent: обрабатывает реплику через ModelPort, состояния не хранит. Command — команда CLI/REPL; tool — действие модели.
 
@@ -97,7 +99,8 @@ dependency-cruiser проверяет границы, циклы и import type,
 
 ## Команды разработки
 Node 24; npm ci; npm run hooks:install; npm run dev; npm run dev -- help; npm run dev -- config show.
-npm run dev -- rag index; npm run dev -- rag ask "вопрос"; npm run dev -- --project-root ../rag-lab rag index.
+npm run dev -- rag index; npm run dev -- rag ask "вопрос"; npm run dev -- help "вопрос"; в REPL — /help вопрос.
+npm run dev -- --project-root ../rag-lab rag index.
 npm run lint; npm run typecheck; npm test; npm run test:coverage; npm run build.
 npm run check; npm run check:deps; npm run check:structure; npm run docs:generate.
 
