@@ -70,35 +70,10 @@ describe("rag ask", () => {
     expect(requestOf(one).messages[1]?.content).not.toContain("### Фрагмент 2");
   });
 
-  it("--rag-chunk-strategy выбирает чанки другой стратегии", async () => {
-    writeCorpus(join(cwd, "docs"), {
-      "c.md": `# Три\n\n${"альфа ".repeat(40)}\n\n## Раздел\n\n${"бета ".repeat(40)}`,
-    });
-    const small = ["--rag-chunk-size-chars=300", "--rag-overlap-chars=0", "--rag-min-chunk-chars=100"];
-    await invoke([...small, "rag", "index"], { cwd, embeddings: fakeEmbeddings() });
-    const ask = (strategy: string) =>
-      invoke(
-        [
-          "--rag-retrieval-mode=baseline",
-          `--rag-chunk-strategy=${strategy}`,
-          "--rag-candidate-top-k=20",
-          "--rag-top-k=20",
-          "rag",
-          "ask",
-          "Вопрос",
-        ],
-        { cwd, embeddings: fakeEmbeddings() },
-      );
-    const [structure, fixed] = [await ask("structure"), await ask("fixed")];
-    expect(fixed.code).toBe(0);
-    expect(requestOf(fixed).messages[1]?.content).not.toBe(requestOf(structure).messages[1]?.content);
-  });
-
   it.each([
     ["--rag-top-k=0", "rag.topK"],
     ["--rag-top-k=21", "rag.topK"],
     ["--rag-top-k=1.5", "rag.topK"],
-    ["--rag-chunk-strategy=hybrid", "rag.chunkStrategy"],
   ])("%s отклоняется до обращения к модели и Ollama", async (flag, key) => {
     const result = await invoke([flag, "rag", "ask", "Вопрос"], { cwd, embeddings: fakeEmbeddings() });
     expect(result.code).toBe(1);

@@ -2,13 +2,12 @@ import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { writeFileAtomic } from "./atomicWrite.ts";
 import { RagError } from "./errors.ts";
-import { BLOCK_TYPES, STRATEGIES } from "./types.ts";
+import { BLOCK_TYPES } from "./types.ts";
 
 const count = z.number().int().nonnegative();
 
 const chunkSchema = z.object({
   chunk_id: z.string(),
-  strategy: z.enum(STRATEGIES),
   source: z.string(),
   title: z.string(),
   file: z.string(),
@@ -19,12 +18,7 @@ const chunkSchema = z.object({
   embedding: z.array(z.number()),
 });
 
-const strategySchema = z.object({
-  chunkingMs: z.number(),
-  embeddingMs: z.number(),
-  promptTokens: count,
-  chunks: z.array(chunkSchema),
-});
+const statsSchema = z.object({ chunkingMs: z.number(), embeddingMs: z.number(), promptTokens: count });
 
 const documentSchema = z.object({
   file: z.string(),
@@ -35,7 +29,7 @@ const documentSchema = z.object({
   blocks: z.array(z.object({ type: z.enum(BLOCK_TYPES), start: count, end: count, section: z.string() })),
 });
 
-export const INDEX_FORMAT_VERSION = 1;
+export const INDEX_FORMAT_VERSION = 2;
 
 const indexSchema = z.object({
   formatVersion: z.literal(INDEX_FORMAT_VERSION),
@@ -45,11 +39,12 @@ const indexSchema = z.object({
   model: z.object({ name: z.string(), digest: z.string(), dimension: z.number().int().positive() }),
   modelLoadMs: z.number(),
   documents: z.array(documentSchema),
-  strategies: z.object({ fixed: strategySchema, structure: strategySchema }),
+  stats: statsSchema,
+  chunks: z.array(chunkSchema),
 });
 
 export type IndexFile = z.infer<typeof indexSchema>;
-export type StrategyIndex = z.infer<typeof strategySchema>;
+export type IndexStats = z.infer<typeof statsSchema>;
 
 export async function writeIndex(path: string, index: IndexFile): Promise<void> {
   await writeFileAtomic(path, JSON.stringify(index));

@@ -1,7 +1,7 @@
 import { type EmbeddingPort, embedAll } from "./embeddings.ts";
 import { RagError } from "./errors.ts";
 import { readIndex } from "./indexFile.ts";
-import type { Chunk, EmbeddedChunk, Strategy } from "./types.ts";
+import type { Chunk, EmbeddedChunk } from "./types.ts";
 
 /** Найденный чанк без эмбеддинга; `rank` считается с 1. */
 export type SearchHit = Readonly<{ rank: number; score: number; chunk: Chunk }>;
@@ -10,7 +10,7 @@ export type SearchIndex = Readonly<{
   createdAt: string;
   model: Readonly<{ name: string; digest: string; dimension: number }>;
   files: readonly string[];
-  search(question: string, strategy: Strategy, topK: number): Promise<readonly SearchHit[]>;
+  search(question: string, topK: number): Promise<readonly SearchHit[]>;
 }>;
 
 export function cosine(a: readonly number[], b: readonly number[]): number {
@@ -51,10 +51,10 @@ export async function openIndex(options: OpenIndexOptions): Promise<SearchIndex>
     createdAt: index.createdAt,
     model: index.model,
     files: index.documents.map((document) => document.file),
-    async search(question, strategy, topK) {
+    async search(question, topK) {
       const { vectors } = await embedAll(options.embeddings, [question], index.model.dimension);
       const [vector = []] = vectors;
-      return rankChunks(index.strategies[strategy].chunks, vector, topK);
+      return rankChunks(index.chunks, vector, topK);
     },
   };
 }

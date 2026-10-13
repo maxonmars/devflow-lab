@@ -70,7 +70,6 @@ export function searchHit(rank: number, file: string, score: number, text = `Ñ‚Ð
     score,
     chunk: {
       chunk_id: `${file}#${rank}`,
-      strategy: "structure",
       source: "src",
       title: "Doc",
       file,

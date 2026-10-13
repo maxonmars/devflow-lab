@@ -28,8 +28,9 @@ describe("команды rag", () => {
     expect(result.output).toContain("Документов: 2");
     expect(result.output).toContain("Модель: fake:latest");
     expect(result.output).toContain(`Сохранено: ${indexFile}`);
-    expect(result.error).toContain("fixed: разбиение");
-    expect(result.error).toContain("structure: эмбеддинги");
+    expect(result.output).toMatch(/Чанков: \d+/);
+    expect(result.error).toContain("Разбиение: чанков");
+    expect(result.error).toContain("Эмбеддинги: чанков");
     expect(result.createModel).not.toHaveBeenCalled();
   });
 

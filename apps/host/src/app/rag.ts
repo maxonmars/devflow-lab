@@ -18,15 +18,12 @@ const integer = (value: number) =>
     .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 
 function indexLines(result: IndexResult): string[] {
-  const strategies = (["fixed", "structure"] as const).map((name) => {
-    const stats = result.strategies[name];
-    const seconds = (stats.embeddingMs / 1000).toFixed(1);
-    return `${name}: ${integer(stats.chunks)} чанков, токенов ${integer(stats.promptTokens)}, эмбеддинги ${seconds} с`;
-  });
+  const { stats } = result;
+  const seconds = (stats.embeddingMs / 1000).toFixed(1);
   return [
     `Документов: ${result.documents}, символов: ${integer(result.chars)}`,
     `Модель: ${result.model.name}, digest ${result.model.digest.slice(0, 12)}, размерность ${result.model.dimension}`,
-    ...strategies,
+    `Чанков: ${integer(stats.chunks)}, токенов ${integer(stats.promptTokens)}, эмбеддинги ${seconds} с`,
   ];
 }
 
@@ -47,9 +44,7 @@ export function createRagHandlers(options: RagHandlerOptions) {
         },
         embeddings: configuredEmbeddings(config, options.createEmbeddings),
         onProgress: (event) =>
-          options.view.progress(
-            `${event.strategy}: ${event.stage === "chunked" ? "разбиение" : "эмбеддинги"}, чанков ${event.chunks}`,
-          ),
+          options.view.progress(`${event.stage === "chunked" ? "Разбиение" : "Эмбеддинги"}: чанков ${event.chunks}`),
       });
       return { lines: indexLines(result), path: result.path };
     },

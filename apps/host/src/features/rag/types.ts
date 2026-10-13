@@ -1,6 +1,3 @@
-export const STRATEGIES = ["fixed", "structure"] as const;
-export type Strategy = (typeof STRATEGIES)[number];
-
 export const BLOCK_TYPES = ["heading", "paragraph", "code", "table", "list", "blockquote", "html", "other"] as const;
 export type BlockType = (typeof BLOCK_TYPES)[number];
 
@@ -13,7 +10,6 @@ export type Range = Readonly<{ start: number; end: number }>;
 
 export type Chunk = Readonly<{
   chunk_id: string;
-  strategy: Strategy;
   source: string;
   title: string;
   file: string;

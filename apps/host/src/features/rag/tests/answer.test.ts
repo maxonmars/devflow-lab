@@ -20,7 +20,6 @@ function setup(overrides: Partial<RagAnswerOptions> = {}, modelOptions: Paramete
   const options: RagAnswerOptions = {
     question: "  Что такое global?  ",
     index,
-    strategy: "structure",
     mode: "baseline",
     candidateTopK: 10,
     topK: 2,
@@ -38,7 +37,7 @@ describe("answerWithRag", () => {
     const { options, search, requests, kinds } = setup();
     const result = await answerWithRag(options);
     const message = renderRagMessage("Что такое global?", CANDIDATES.slice(0, 2));
-    expect(search).toHaveBeenCalledExactlyOnceWith("Что такое global?", "structure", 10);
+    expect(search).toHaveBeenCalledExactlyOnceWith("Что такое global?", 10);
     expect(kinds).toEqual(["answer"]);
     expect(requests[0]?.messages).toEqual([
       { role: "system", content: `Системная инструкция.\n\n${readPrompt("answer.md")}` },
@@ -75,7 +74,7 @@ describe("answerWithRag", () => {
   it("rewrite: поиск идёт по переписанной строке, а генерация получает исходный вопрос", async () => {
     const { options, search, requests, kinds } = setup({ mode: "rewrite" }, { rewrite: () => "определение global" });
     const result = await answerWithRag(options);
-    expect(search).toHaveBeenCalledExactlyOnceWith("определение global", "structure", 10);
+    expect(search).toHaveBeenCalledExactlyOnceWith("определение global", 10);
     expect(kinds).toEqual(["rewrite", "answer"]);
     expect(String(requests[1]?.messages[1]?.content).endsWith("## Вопрос\n\nЧто такое global?")).toBe(true);
     expect(requests[1]?.messages[1]?.content).not.toContain("определение global");

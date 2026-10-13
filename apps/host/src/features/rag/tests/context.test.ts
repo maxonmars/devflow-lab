@@ -7,7 +7,6 @@ const hit = (rank: number, text: string, sections: string[] = ["Global › Пр�
   score: 0.5,
   chunk: {
     chunk_id: `c${rank}`,
-    strategy: "structure",
     source: "https://example.test/global.md",
     title: "Global",
     file: "structure/global.md",

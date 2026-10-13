@@ -13,7 +13,6 @@ import { rewriteQuery } from "./rewrite.ts";
 import type { SearchHit, SearchIndex } from "./search.ts";
 import { type Selection, selectForMode } from "./select.ts";
 import { timed, timedSync } from "./timing.ts";
-import type { Strategy } from "./types.ts";
 
 export const ANSWER_PROMPTS = ["default", "compact"] as const;
 export type AnswerPrompt = (typeof ANSWER_PROMPTS)[number];
@@ -41,7 +40,6 @@ export type RagAnswerOptions = RetrievalParams &
   Readonly<{
     question: string;
     index: SearchIndex;
-    strategy: Strategy;
     mode: RetrievalMode;
     model: ModelPort;
     systemPrompt: string;
@@ -81,7 +79,7 @@ export async function answerWithRag(options: RagAnswerOptions): Promise<RagAnswe
   const rewritten = usesRewrite(options.mode)
     ? await timed(() => rewriteQuery(question, options.model))
     : { value: question, ms: 0 };
-  const search = await timed(() => options.index.search(rewritten.value, options.strategy, options.candidateTopK));
+  const search = await timed(() => options.index.search(rewritten.value, options.candidateTopK));
   const selection = timedSync(() => selectForMode(options.mode, search.value, options));
   const { hits } = selection.value;
   const generation = await timed(() =>

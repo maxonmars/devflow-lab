@@ -10,7 +10,6 @@ import { fakeEmbeddings, keywordEmbeddings, PARAMS, writeCorpus } from "./suppor
 
 const chunkOf = (id: string, embedding: number[]): EmbeddedChunk => ({
   chunk_id: id,
-  strategy: "structure",
   source: "src",
   title: "Doc",
   file: "doc.md",
@@ -105,18 +104,17 @@ describe("openIndex", () => {
     expect((error as RagError).data).toEqual({ indexModel: "fake:latest", model: "other:latest" });
   });
 
-  it("эмбеддит один текст — вопрос — и находит чанки выбранной стратегии", async () => {
+  it("эмбеддит один текст — вопрос — и ранжирует чанки по сходству", async () => {
     await build();
     const embeddings = keywordEmbeddings(["кошка", "собака"]);
     const index = await openIndex({ indexFile, embeddings });
     embeddings.calls.length = 0;
-    const hits = await index.search("Что делает кошка?", "fixed", 2);
+    const hits = await index.search("Что делает кошка?", 2);
     expect(embeddings.calls).toEqual([["Что делает кошка?"]]);
     expect(hits).toHaveLength(2);
-    expect(hits.every((hit) => hit.chunk.strategy === "fixed")).toBe(true);
     expect(hits[0]?.chunk.file).toBe("cats.md");
-    const structure = await index.search("Что делает собака?", "structure", 1);
-    expect(structure[0]?.chunk).toMatchObject({ strategy: "structure", file: "dogs.md" });
+    const dogs = await index.search("Что делает собака?", 1);
+    expect(dogs[0]?.chunk.file).toBe("dogs.md");
   });
 
   it("раскрывает время создания, модель и файлы индекса", async () => {

@@ -51,7 +51,7 @@ describe("индексация корпуса", () => {
     expect(embeddings.calls[0]).toHaveLength(1);
     const { index } = await readIndex(outputFile);
     expect(index).toMatchObject({
-      formatVersion: 1,
+      formatVersion: 2,
       createdAt: "2026-09-29T10:00:00.000Z",
       params: PARAMS,
       model: { name: "fake:latest", digest: "0123456789abcdef", dimension: 3 },
@@ -59,26 +59,19 @@ describe("индексация корпуса", () => {
     });
     expect(index.documents.map((document) => document.file)).toEqual(["a/one.md", "b/two.md"]);
     expect(index.documents[0]?.blocks.length).toBeGreaterThan(0);
-    for (const strategy of ["fixed", "structure"] as const) {
-      const { chunks } = index.strategies[strategy];
-      expect(chunks.length).toBeGreaterThan(1);
-      expect(new Set(chunks.map((chunk) => chunk.chunk_id)).size).toBe(chunks.length);
-      expect(chunks.every((chunk) => chunk.embedding.length === 3 && chunk.strategy === strategy)).toBe(true);
-      expect(result.strategies[strategy].chunks).toBe(chunks.length);
-      expect(result.strategies[strategy].promptTokens).toBe(index.strategies[strategy].promptTokens);
-    }
+    const { chunks } = index;
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(new Set(chunks.map((chunk) => chunk.chunk_id)).size).toBe(chunks.length);
+    expect(chunks.every((chunk) => chunk.embedding.length === 3)).toBe(true);
+    expect(result.stats.chunks).toBe(chunks.length);
+    expect(result.stats.promptTokens).toBe(index.stats.promptTokens);
     expect(result).toMatchObject({ path: outputFile, documents: 2, model: { dimension: 3 } });
   });
 
-  it("сообщает о ходе по стратегиям в порядке выполнения", async () => {
+  it("сообщает о ходе: сначала разбиение, затем эмбеддинги", async () => {
     const events: ProgressEvent[] = [];
     await build(fakeEmbeddings(), PARAMS, (event) => events.push(event));
-    expect(events.map((event) => `${event.strategy}:${event.stage}`)).toEqual([
-      "fixed:chunked",
-      "fixed:embedded",
-      "structure:chunked",
-      "structure:embedded",
-    ]);
+    expect(events.map((event) => event.stage)).toEqual(["chunked", "embedded"]);
   });
 
   it("повторная сборка даёт те же ID и хеш корпуса, а смена параметров — новые ID", async () => {
@@ -87,19 +80,17 @@ describe("индексация корпуса", () => {
     await build();
     const again = (await readIndex(outputFile)).index;
     expect(again.corpusHash).toBe(first.corpusHash);
-    expect(again.strategies.fixed.chunks.map((chunk) => chunk.chunk_id)).toEqual(
-      first.strategies.fixed.chunks.map((chunk) => chunk.chunk_id),
-    );
+    expect(again.chunks.map((chunk) => chunk.chunk_id)).toEqual(first.chunks.map((chunk) => chunk.chunk_id));
     await build(fakeEmbeddings(), { ...PARAMS, chunkSizeChars: 120 });
     const changed = (await readIndex(outputFile)).index;
-    expect(changed.strategies.fixed.chunks[0]?.chunk_id).not.toBe(first.strategies.fixed.chunks[0]?.chunk_id);
+    expect(changed.chunks[0]?.chunk_id).not.toBe(first.chunks[0]?.chunk_id);
   });
 
   it("при сбое эмбеддингов прежний индекс остаётся целым и временных файлов нет", async () => {
     await build();
     const before = readFileSync(outputFile, "utf8");
     const failing = fakeEmbeddings();
-    failing.failOnCall = 3;
+    failing.failOnCall = 2;
     await expect(build(failing)).rejects.toThrow("сбой эмбеддингов");
     expect(readFileSync(outputFile, "utf8")).toBe(before);
     expect(readdirSync(join(root, "out"))).toEqual(["index.json"]);
