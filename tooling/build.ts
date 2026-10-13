@@ -2,7 +2,26 @@ import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { Client } from "@modelcontextprotocol/client";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { files, localPath, workspacePaths } from "./files.ts";
+
+const TOOL_LIST_SMOKE_TIMEOUT_MS = 5_000;
+const GIT_TOOLS = ["git_branch", "git_diff", "git_status", "list_files"];
+
+/** Собранный сервер из другого каталога: сверяет отсортированный listTools с ожидаемым набором инструментов. */
+async function toolListSmoke(cwd: string, args: readonly string[], expectedTools: readonly string[]): Promise<void> {
+  const client = new Client({ name: "build-smoke", version: "0.0.0" }, { versionNegotiation: { mode: "auto" } });
+  const transport = new StdioClientTransport({ command: process.execPath, args: [...args], cwd, stderr: "ignore" });
+  await client.connect(transport, { timeout: TOOL_LIST_SMOKE_TIMEOUT_MS });
+  try {
+    const listed = (await client.listTools()).tools.map((tool) => tool.name).sort();
+    if (listed.join() !== [...expectedTools].sort().join())
+      throw new Error(`${args[0]} smoke: неверный список инструментов.`);
+  } finally {
+    await client.close();
+  }
+}
 
 const root = resolve(".");
 for (const workspace of workspacePaths(root)) {
@@ -33,6 +52,8 @@ try {
   }
   execFileSync(process.execPath, [main, "config", "show"], { cwd: temporary, env: {}, stdio: "pipe" });
   console.log("Сборка и запуск CLI из другого каталога: OK.");
+  await toolListSmoke(temporary, [join(root, "servers/git/dist/app/main.js"), "--root", root], GIT_TOOLS);
+  console.log("Запуск собранного git MCP server из другого каталога: OK.");
 } finally {
   rmSync(temporary, { recursive: true, force: true });
 }
