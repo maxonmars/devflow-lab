@@ -1,6 +1,7 @@
 import { Agent, AgentError, type ModelPort } from "../../core/index.ts";
 import { type CitedAnswer, parseCitedAnswer, retrievalRefusal } from "./citations.ts";
 import { renderRagMessage } from "./context.ts";
+import { generateWithTools, type ProjectTools } from "./projectAnswer.ts";
 import { readPrompt } from "./prompts.ts";
 import {
   checkRetrievalParams,
@@ -44,6 +45,8 @@ export type RagAnswerOptions = RetrievalParams &
     model: ModelPort;
     systemPrompt: string;
     answerPrompt: AnswerPrompt;
+    /** Инструменты проекта: вместо шаблона ответа — prompts/project.md, пустой отбор не отменяет вызов модели. */
+    tools?: ProjectTools;
   }>;
 
 export type GenerationOptions = Readonly<{
@@ -54,6 +57,7 @@ export type GenerationOptions = Readonly<{
   selection: Selection;
   /** Порог режима с фильтром; `null` — режим без порога. */
   threshold: number | null;
+  tools?: ProjectTools;
 }>;
 
 /**
@@ -64,6 +68,10 @@ export async function generateAnswer(
   options: GenerationOptions,
 ): Promise<Readonly<{ answer: CitedAnswer; contextChars: number }>> {
   const { hits } = options.selection;
+  if (options.tools) {
+    const { model, systemPrompt, question, tools } = options;
+    return generateWithTools({ model, systemPrompt, question, hits, tools });
+  }
   if (hits.length === 0) return { answer: retrievalRefusal(options.selection, options.threshold), contextChars: 0 };
   const message = renderRagMessage(options.question, hits);
   const instruction = [options.systemPrompt, readPrompt(ANSWER_PROMPT_FILES[options.answerPrompt])];
@@ -90,6 +98,7 @@ export async function answerWithRag(options: RagAnswerOptions): Promise<RagAnswe
       question,
       selection: selection.value,
       threshold: usesFilter(options.mode) ? options.threshold : null,
+      ...(options.tools ? { tools: options.tools } : {}),
     }),
   );
   return {

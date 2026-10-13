@@ -6,7 +6,7 @@ import { wrapText } from "./text.ts";
 
 export type HelpSetting = Readonly<{ flag: string; type: string; description: string }>;
 export type ConfigRow = Readonly<{ key: string; value: string; source: string }>;
-export type CommandView = Pick<CliView, "answer" | "help" | "config" | "indexBuilt" | "ragAnswer">;
+export type CommandView = Pick<CliView, "answer" | "help" | "config" | "indexBuilt" | "ragAnswer" | "infoAnswer">;
 
 const fallbackWidth = 88;
 const columnGap = "  ";
@@ -31,6 +31,13 @@ export class CliView {
   /** Ответ с RAG: текст модели и под ним фрагменты, переданные модели; пустой список — контекст без фрагментов. `model` — подпись `провайдер · модель` для заголовка. */
   ragAnswer(text: string, fragments: readonly string[], model: string): void {
     this.#ragBlock(`Ответ агента · RAG · ${model}`, text, fragments, []);
+  }
+
+  /** Ответ `info <вопрос>`: ответ мог дать инструмент проекта, поэтому пустой список фрагментов не показывается. */
+  infoAnswer(text: string, fragments: readonly string[], model: string): void {
+    const listed =
+      fragments.length > 0 ? ["", this.#paint("key", "Фрагменты:"), ...fragments.map((line) => `  ${line}`)] : [];
+    this.#block(`Ответ ассистента проекта · ${model}`, [text, ...listed]);
   }
 
   help(commands: readonly Command[], settings: readonly HelpSetting[]): void {

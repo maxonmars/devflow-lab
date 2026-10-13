@@ -145,6 +145,7 @@ describe("parseCitedAnswer: «не знаю» и нарушение формат
         text: raw.trim(),
         sources: [],
         quotes: [],
+        projectData: [],
         problems: [{ code: "format" }],
         raw,
       });

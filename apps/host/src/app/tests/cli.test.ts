@@ -93,6 +93,7 @@ describe("CLI и REPL", () => {
 
   it("отклоняет лишние и отсутствующие аргументы команд", async () => {
     expect((await invoke(["help", "extra"], { cwd })).code).toBe(1);
+    expect((await invoke(["config", "show", "extra"], { cwd })).code).toBe(1);
     expect((await invoke(["ask"], { cwd })).code).toBe(1);
     expect((await invoke(["rag", "index", "extra"], { cwd })).code).toBe(1);
   });
@@ -101,7 +102,7 @@ describe("CLI и REPL", () => {
     const result = await invoke([], { cwd, input: "Вопрос\n/exit\n", interactive: true });
     expect(result.output.match(/── devflow-lab ──/g)).toHaveLength(1);
     expect(result.output.match(/Модель: deepseek · deepseek-flash/g)).toHaveLength(1);
-    expect(result.output).toContain("/ask · /help · /config show · /rag index · /rag ask · /exit");
+    expect(result.output).toContain("/ask · /info · /help · /config show · /rag index · /rag ask · /exit");
     expect(result.output.match(/devflow-lab > /g)).toHaveLength(2);
   });
 

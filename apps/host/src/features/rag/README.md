@@ -19,6 +19,7 @@
   шаблоном `prompts/answer.md` или `answer-compact.md`. Пустой вопрос — `AgentError EMPTY_INPUT`, несогласованные
   параметры — `INVALID_RETRIEVAL_PARAMS`, оба до rewrite и поиска. Возвращает `answer`, итоговые `hits`, `contextChars`,
   строку поиска `query`, исходные `candidates` и длительности этапов `timings`.
+  Необязательные `tools` (`ProjectTools`: `source` и `maxToolCalls`) включают ответ с инструментами проекта (ниже).
 - `renderCitedAnswer(answer)`, `describeCitationProblem(problem)` — текст ответа для CLI и русские описания замечаний.
 - `ANSWER_PROMPTS`, `RETRIEVAL_MODES`, `checkRetrievalParams`, `MAX_TOP_K`, `SIMILARITY_RANGE`, `usesFilter` — режимы и
   единственная проверка параметров поиска.
@@ -75,13 +76,23 @@
 нормализации она — подстрока текста указанного чанка (не короче 20 символов). Нарушения формата возвращаются в
 `problems`, модель повторно не вызывается.
 
+## Ответ с инструментами проекта
+
+С `tools` (ADR 0002) инструкция — `prompts/project.md` вместо шаблона ответа: устройство проекта берётся из фрагментов,
+текущее состояние репозитория — из инструментов, которые модель вызывает сама (не больше `maxToolCalls`). Модель
+вызывается и при пустом отборе; в сообщении тогда «Подходящих фрагментов нет». Ответ может содержать раздел
+`## Данные проекта` со строками `- инструмент: факт`. `CitedAnswer.projectData` хранит эти строки с признаком `called`:
+вызывался ли инструмент в этом ответе; если нет — замечание `tool-not-called`. Ответ только по данным инструментов не
+требует источников и цитат, и `renderCitedAnswer` не печатает для него пустые «Источники» и «Цитаты». Без `tools`
+раздел «Данные проекта» — лишний, поведение `rag ask` прежнее.
+
 ## Настройки и команды
 
 `project.root`, `rag.include`, `rag.outputDir`, `rag.chunkSizeChars` (1800), `rag.overlapChars` (200),
 `rag.minChunkChars` (500), `rag.embeddingBaseUrl`, `rag.embeddingModel` (`bge-m3`), `rag.embeddingTimeoutMs`,
 `rag.retrievalMode` (`rewrite-filter`), `rag.answerPrompt`, `rag.candidateTopK` (10), `rag.topK` (5),
 `rag.similarityThreshold` (0.55) — [docs/configuration.md](../../../../../docs/configuration.md).
-Команды `rag index` и `rag ask` — [docs/commands.md](../../../../../docs/commands.md).
+Команды `rag index`, `rag ask` и `info <вопрос>` — [docs/commands.md](../../../../../docs/commands.md).
 
 ## Ограничения
 
@@ -90,6 +101,7 @@
 - Только `.md`; схемы и API-описания в других форматах в корпус не входят.
 - Поиск — линейный перебор, индекс читается целиком на каждый `rag ask`; при другой модели эмбеддингов поиск отказывает.
 - Размеры в кодовых точках, не в токенах. Нормализация цитаты не распознаёт перефразирование.
+- Факт из «Данных проекта» сверяется только по имени инструмента, не по его результату.
 
 ## Проверка
 

@@ -6,6 +6,7 @@ try {
     argv: process.argv.slice(2),
     env: process.env,
     cwd: process.env.INIT_CWD ?? process.cwd(),
+    nodeExecutable: process.execPath,
     terminal: {
       input: process.stdin,
       output: process.stdout,

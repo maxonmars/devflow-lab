@@ -1,10 +1,11 @@
 export { ANSWER_PROMPTS, type AnswerPrompt, answerWithRag, type RagAnswer, type StageTimings } from "./answer.ts";
 export { describeCitationProblem, renderCitedAnswer } from "./citationRender.ts";
-export type { CitationProblem, CitedAnswer } from "./citations.ts";
+export type { CitationProblem, CitedAnswer, ProjectFact } from "./citations.ts";
 export { EMBED_BATCH_SIZE, type EmbedBatch, type EmbeddingPort, type ModelInfo } from "./embeddings.ts";
 export { describeRagError, RagError, type RagErrorCode } from "./errors.ts";
 export { type IndexOptions, type IndexResult, type IndexStats, indexCorpus, type ProgressEvent } from "./indexer.ts";
 export { createOllamaEmbeddings, type OllamaOptions } from "./ollama.ts";
+export type { ProjectTools } from "./projectAnswer.ts";
 export {
   checkRetrievalParams,
   MAX_TOP_K,

@@ -3,7 +3,8 @@
 Учебный репозиторий седьмой недели курса — AI в рабочем процессе разработчика. За неделю здесь появятся ассистент,
 который понимает проект (RAG по документации и MCP-инструменты проекта), ревью PR в GitHub Actions, пайплайны и
 субагенты; план — [docs/course.md](docs/course.md). Каркас собран из rag-lab и mcp-lab
-([ADR 0001](docs/adr/0001-repository-foundation.md)): RAG по документации проекта и `ask` с циклом MCP-инструментов.
+([ADR 0001](docs/adr/0001-repository-foundation.md)). Сейчас готов ассистент проекта `info <вопрос>`: он отвечает по
+документации (RAG) и сам смотрит в git через MCP-сервер ([ADR 0002](docs/adr/0002-project-info.md)).
 
 ## Запуск
 
@@ -13,11 +14,11 @@ npm ci
 npm run hooks:install
 ollama pull bge-m3
 npm run dev -- rag index
-npm run dev -- rag ask "Какие проверки входят в npm run check?"
+npm run dev -- info "Какая сейчас ветка и что в ней изменено?"
 ```
 
-Ollama должна быть запущена (`ollama serve`) — [docs/ollama.md](docs/ollama.md). Ключ DeepSeek нужен для `ask` и
-`rag ask` при `llm.provider: deepseek`: `LAB_LLM_API_KEY` в корневом `.env` или окружении процесса. С
+Ollama должна быть запущена (`ollama serve`) — [docs/ollama.md](docs/ollama.md). Ключ DeepSeek нужен для `ask`,
+`rag ask` и `info <вопрос>` при `llm.provider: deepseek`: `LAB_LLM_API_KEY` в корневом `.env` или окружении процесса. С
 `--llm-provider local` те же команды идут в локальный OpenAI-совместимый сервер без ключа. Индекс лежит в
 `.local/rag/index.json` (каталог `.local/` не попадает в git).
 
@@ -26,6 +27,21 @@ npm run dev -- help
 npm run dev -- config show
 npm run dev -- ask "Что такое MCP?"
 npm run dev
+```
+
+## Ассистент проекта
+
+`info <вопрос>` (в REPL — `/info вопрос`) ищет фрагменты документации проекта и даёт модели git-инструменты: ветку,
+статус, diff и список отслеживаемых файлов. Модель сама решает, что вызвать; каждый вызов печатается строкой
+`MCP: git › git_branch — выполнено`. Ответ содержит источники с проверенными цитатами и раздел «Данные проекта» с
+фактами инструментов; если ответ дан только по данным git, пустые «Источники», «Цитаты» и «Фрагменты» не печатаются.
+`help` (`--help`, `-h`) — обычная справка по командам и настройкам. Обычная строка REPL идёт в `ask`: у него есть
+git-инструменты, но нет документации.
+
+```sh
+npm run dev -- info "Где лежат MCP-серверы и какие правила для их инструментов?"
+npm run dev -- info "Какие файлы лежат в docs/adr?"
+npm run dev -- --project-root ../rag-lab info "Какая ветка и как устроен шлюз локальной модели?"
 ```
 
 ## RAG по документации проекта
@@ -45,9 +61,9 @@ npm run dev -- --project-root ../rag-lab rag ask "Как устроен шлюз
 
 ## MCP
 
-`ask` открывает сессии MCP-серверов проекта на каждую реплику и даёт модели их инструменты (до 6 вызовов за реплику);
-каждый вызов печатается строкой `MCP: сервер › инструмент — выполнено`. Серверов пока нет — они появляются в `servers/`
-по заданиям; инструменты по умолчанию только читают ([правила](servers/README.md)).
+`ask` и `info <вопрос>` открывают сессии MCP-серверов проекта на каждую реплику и дают модели их инструменты. Сейчас
+сервер один — [git](servers/git/README.md) с корнем `project.root`; его инструменты только читают, не выходят за корень
+и не видят игнорируемых файлов вроде `.env` ([правила серверов](servers/README.md)).
 
 Настройки — YAML-файл, env (`LAB_…`) и флаги; приоритет и список — [docs/configuration.md](docs/configuration.md),
 команды — [docs/commands.md](docs/commands.md). Пример файла — [lab.config.example.yaml](lab.config.example.yaml).
@@ -57,7 +73,8 @@ npm run dev -- --project-root ../rag-lab rag ask "Как устроен шлюз
 - [Архитектура](ARCHITECTURE.md), [правила для агентов](AGENTS.md), [ADR](docs/adr/README.md), [план недели](docs/course.md).
 - [Фича rag](apps/host/src/features/rag/README.md) — контракт, формат индекса, ограничения.
 - [Фича mcp](apps/host/src/features/mcp/README.md) — stdio-клиент и окружение серверов.
-- [Демо: RAG по самому репозиторию](docs/demos/project-rag.md).
+- [git MCP server](servers/git/README.md) — инструменты, песочница, ошибки.
+- Демо: [RAG по самому репозиторию](docs/demos/project-rag.md), [ассистент проекта](docs/demos/project-info.md).
 
 ## Проверки
 
