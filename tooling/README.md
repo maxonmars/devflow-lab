@@ -5,7 +5,6 @@
 - `structure.ts`: размер, шаблоны фич/workspaces, пары AGENTS/CLAUDE, доступ к process.
 - `docs.ts`: генерация и проверка Markdown из реестров.
 - `build.ts`: сборка пакетов, копирование Markdown, проверка собранного CLI из другого каталога.
-- `feod-corpus.ts`: подготовка корпуса FEOD (`npm run corpus:feod`): клон на закреплённый коммит, frontmatter, CORPUS.md.
 - `tests`: положительные и отрицательные примеры для проверяющих инструментов.
 
 `npm run check` одинаков для pre-commit и CI. Отдельных ослабленных правил для тестов зависимостей нет.

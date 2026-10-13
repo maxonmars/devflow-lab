@@ -13,13 +13,13 @@ const CORPUS = {
 };
 
 let root: string;
-let inputDir: string;
+let projectRoot: string;
 let outputFile: string;
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), "devflow-lab-index-"));
-  inputDir = join(root, "corpus");
+  projectRoot = join(root, "corpus");
   outputFile = join(root, "out", "index.json");
-  writeCorpus(inputDir, CORPUS);
+  writeCorpus(projectRoot, CORPUS);
 });
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });
@@ -27,7 +27,7 @@ afterEach(() => {
 
 const build = (embeddings = fakeEmbeddings(), params = PARAMS, onProgress?: (event: ProgressEvent) => void) =>
   indexCorpus({
-    projectRoot: inputDir,
+    projectRoot,
     include: ["**/*.md"],
     outputFile,
     params,
@@ -100,7 +100,7 @@ describe("индексация корпуса", () => {
     const blocker = join(root, "blocker");
     writeFileSync(blocker, "файл вместо каталога");
     const failing = indexCorpus({
-      projectRoot: inputDir,
+      projectRoot,
       include: ["**/*.md"],
       outputFile: join(blocker, "index.json"),
       params: PARAMS,
@@ -123,9 +123,9 @@ describe("индексация корпуса", () => {
 
   it("ошибка корпуса или отсутствующая модель не доходят до эмбеддингов и не создают индекс", async () => {
     const embeddings = fakeEmbeddings();
-    rmSync(inputDir, { recursive: true });
+    rmSync(projectRoot, { recursive: true });
     expect(await codeOf(build(embeddings))).toBe("CORPUS_NOT_FOUND:");
-    writeCorpus(inputDir, CORPUS);
+    writeCorpus(projectRoot, CORPUS);
     vi.spyOn(embeddings, "describeModel").mockRejectedValue(new RagError("MODEL_NOT_FOUND", { model: "x" }));
     expect(await codeOf(build(embeddings))).toBe("MODEL_NOT_FOUND:");
     expect(embeddings.calls).toHaveLength(0);

@@ -1,6 +1,6 @@
 # Ollama: запуск, остановка, проверка
 
-Ollama — локальный сервер моделей на `http://localhost:11434`. Он нужен только команде `rag index`; `rag compare`, `ask`,
+Ollama — локальный сервер моделей на `http://localhost:11434`. Он нужен командам `rag index` и `rag ask` (эмбеддинги); `ask`,
 `help` и `config show` его не используют. Без сервера `rag index` завершается сообщением «Ollama недоступна…».
 
 ## Что установлено на машине разработки
@@ -54,12 +54,11 @@ ollama serve > /tmp/ollama.log 2>&1 &
 ## Модели и память
 
 - После запроса модель остаётся в памяти 5 минут (`OLLAMA_KEEP_ALIVE`). Выгрузить сразу: `ollama stop bge-m3`.
-  Для режима сервиса (шлюз `servers/llm-gateway`) сервер запускают как `OLLAMA_KEEP_ALIVE=30m ollama serve`: иначе первый запрос после простоя заново грузит 18 ГБ.
 - Скачать: `ollama pull bge-m3` (нужно один раз). Удалить: `ollama rm bge-m3` — освободит около 1,2 ГБ.
 - Удалить Ollama целиком: `brew uninstall --cask ollama`. Каталог `~/.ollama` (модели и ключ `id_ed25519`)
   остаётся; удалять его или нет — решает владелец, ключ в git не попадает.
 
-## Работа с rag-lab
+## Работа с devflow-lab
 
 ```sh
 ollama serve                    # если ещё не запущена
