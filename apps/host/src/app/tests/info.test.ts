@@ -12,7 +12,7 @@ const QUOTE = "MCP-серверы лежат в каталоге servers и то
 
 let cwd: string;
 beforeEach(async () => {
-  cwd = mkdtempSync(join(tmpdir(), "devflow-lab-help-"));
+  cwd = mkdtempSync(join(tmpdir(), "devflow-lab-info-"));
   writeCorpus(join(cwd, "docs"), { "servers.md": `# Серверы\n\n${QUOTE}.`, "other.md": "# Другое\n\nпро погоду" });
   await invoke(["rag", "index"], { cwd, embeddings: keywordEmbeddings(["серверы", "ветка"]) });
 });
@@ -58,11 +58,11 @@ const run = (argv: string[], log: string[], complete = assistant(), input?: stri
     ...(input === undefined ? {} : { input }),
   });
 
-describe("help с вопросом", () => {
+describe("info", () => {
   it("ассистент получает фрагменты и git-инструменты, ответ показывает цитату и данные проекта", async () => {
     const log: string[] = [];
     const complete = assistant();
-    const result = await run(["help", "Где", "серверы", "и", "какая", "ветка?"], log, complete);
+    const result = await run(["info", "Где", "серверы", "и", "какая", "ветка?"], log, complete);
     expect(result.error).toBe("");
     expect(log).toEqual(["open git", "close git"]);
     const answering = complete.mock.calls.map(([request]) => request).find((request) => request.tools.length > 0);
@@ -75,25 +75,45 @@ describe("help с вопросом", () => {
     expect(result.output).not.toContain("Замечания");
   });
 
-  it("REPL: /help с вопросом отвечает, /help без вопроса печатает справку", async () => {
-    const result = await run([], [], assistant(), "/help какая ветка?\n/help\n/exit\n");
+  it("REPL: /info отвечает как ассистент проекта, /help по-прежнему печатает справку", async () => {
+    const result = await run([], [], assistant(), "/info какая ветка?\n/help\n/exit\n");
     expect(result.output).toContain("Ответ ассистента проекта");
     expect(result.output).toContain("── Справка ──");
   });
 
-  it("без аргументов и через --help — прежняя справка без модели и MCP", async () => {
+  it("ответ только по данным git не печатает пустые источники, цитаты и фрагменты", async () => {
+    const complete = vi.fn(async (request: ModelRequest): Promise<ModelCompletion> => {
+      if (String(request.messages[0]?.content).includes("переписываешь")) return { type: "text", content: "погода" };
+      if (!request.messages.some((message) => message.role === "tool")) {
+        return { type: "tool_calls", calls: [{ id: "c1", name: "git_branch", arguments: {} }] };
+      }
+      return { type: "text", content: "## Ответ\nВетка day-1.\n## Данные проекта\n- git_branch: ветка day-1" };
+    });
+    const result = await run(["info", "Какая ветка?"], [], complete);
+    expect(result.output).toContain("Ветка day-1.\n\nДанные проекта:\n- git_branch: ветка day-1\n");
+    for (const noise of ["Источники", "Цитаты", "Фрагменты"]) expect(result.output).not.toContain(noise);
+  });
+
+  it("help, --help и -h — классическая справка без модели и MCP; help с текстом отклоняется", async () => {
     for (const argv of [["help"], ["--help"], ["-h"]]) {
       const log: string[] = [];
       const result = await run(argv, log);
-      expect(result.output).toContain("help [вопрос...]");
+      expect(result.output).toContain("info <вопрос...>");
       expect(result.createModel).not.toHaveBeenCalled();
       expect(log).toEqual([]);
     }
+    const extra = await run(["help", "вопрос"], []);
+    expect(extra.error).toBe("Ошибка · У команды нет аргументов.\n");
+  });
+
+  it("info без вопроса называет, чего не хватает", async () => {
+    const result = await run(["info"], []);
+    expect(result.error).toBe("Ошибка · Не указан вопрос о проекте.\n");
   });
 
   it("без ключа и без индекса git-сервер не запускается, ошибка называет причину", async () => {
     const log: string[] = [];
-    const noKey = await invoke(["help", "Какая ветка?"], {
+    const noKey = await invoke(["info", "Какая ветка?"], {
       cwd,
       authenticated: false,
       mcpServers: () => [GIT],
@@ -101,9 +121,9 @@ describe("help с вопросом", () => {
     });
     expect(noKey.code).toBe(1);
     expect(noKey.error).toContain("LAB_LLM_API_KEY");
-    const empty = mkdtempSync(join(tmpdir(), "devflow-lab-help-empty-"));
+    const empty = mkdtempSync(join(tmpdir(), "devflow-lab-info-empty-"));
     try {
-      const noIndex = await invoke(["help", "Какая ветка?"], {
+      const noIndex = await invoke(["info", "Какая ветка?"], {
         cwd: empty,
         embeddings: fakeEmbeddings(),
         mcpServers: () => [GIT],

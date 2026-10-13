@@ -1,7 +1,7 @@
 # git MCP server
 
 Читающие инструменты git для ассистента проекта. Host запускает сервер по stdio на каждую реплику `ask` или
-`help <вопрос>` и передаёт корень проекта: `node src/app/main.ts --root <project.root>`.
+`info <вопрос>` и передаёт корень проекта: `node src/app/main.ts --root <project.root>`.
 
 ## Инструменты
 

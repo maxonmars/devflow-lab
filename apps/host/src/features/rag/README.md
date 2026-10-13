@@ -83,7 +83,8 @@
 вызывается и при пустом отборе; в сообщении тогда «Подходящих фрагментов нет». Ответ может содержать раздел
 `## Данные проекта` со строками `- инструмент: факт`. `CitedAnswer.projectData` хранит эти строки с признаком `called`:
 вызывался ли инструмент в этом ответе; если нет — замечание `tool-not-called`. Ответ только по данным инструментов не
-требует источников и цитат. Без `tools` раздел «Данные проекта» — лишний, поведение `rag ask` прежнее.
+требует источников и цитат, и `renderCitedAnswer` не печатает для него пустые «Источники» и «Цитаты». Без `tools`
+раздел «Данные проекта» — лишний, поведение `rag ask` прежнее.
 
 ## Настройки и команды
 
@@ -91,7 +92,7 @@
 `rag.minChunkChars` (500), `rag.embeddingBaseUrl`, `rag.embeddingModel` (`bge-m3`), `rag.embeddingTimeoutMs`,
 `rag.retrievalMode` (`rewrite-filter`), `rag.answerPrompt`, `rag.candidateTopK` (10), `rag.topK` (5),
 `rag.similarityThreshold` (0.55) — [docs/configuration.md](../../../../../docs/configuration.md).
-Команды `rag index`, `rag ask` и `help <вопрос>` — [docs/commands.md](../../../../../docs/commands.md).
+Команды `rag index`, `rag ask` и `info <вопрос>` — [docs/commands.md](../../../../../docs/commands.md).
 
 ## Ограничения
 

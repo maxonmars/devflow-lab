@@ -3,14 +3,14 @@ import { type McpServers, systemPrompt } from "./ask.ts";
 import { fragmentLines, prepareRag, type RagAnswerHandlerOptions, type RagReply } from "./ragAnswer.ts";
 import { combineToolSources, type WithToolSource, withSessions } from "./toolSources.ts";
 
-/** Лимит вызовов инструментов за ответ `help`: ветка, статус, diff и список файлов — по одному разу. */
-export const HELP_MAX_TOOL_CALLS = 4;
+/** Лимит вызовов инструментов за ответ `info`: ветка, статус, diff и список файлов — по одному разу. */
+export const INFO_MAX_TOOL_CALLS = 4;
 
-export type ProjectHelpOptions = RagAnswerHandlerOptions &
+export type ProjectInfoOptions = RagAnswerHandlerOptions &
   Readonly<{ servers: McpServers; withToolSource: WithToolSource }>;
 
-/** `help <вопрос>`: настройки, модель и индекс проверяются до запуска MCP-серверов. */
-export function createProjectHelpHandler(options: ProjectHelpOptions): (text: string) => Promise<RagReply> {
+/** `info <вопрос>`: настройки, модель и индекс проверяются до запуска MCP-серверов. */
+export function createProjectInfoHandler(options: ProjectInfoOptions): (text: string) => Promise<RagReply> {
   return async (text) => {
     const { values, model, index, retrieval, answerPrompt } = await prepareRag(options);
     const config = options.getConfig();
@@ -23,7 +23,7 @@ export function createProjectHelpHandler(options: ProjectHelpOptions): (text: st
         answerPrompt,
         mode: values["rag.retrievalMode"],
         ...retrieval,
-        tools: { source: combineToolSources(sources), maxToolCalls: HELP_MAX_TOOL_CALLS },
+        tools: { source: combineToolSources(sources), maxToolCalls: INFO_MAX_TOOL_CALLS },
       });
       return { answer: renderCitedAnswer(result.answer), fragments: fragmentLines(result.hits) };
     });

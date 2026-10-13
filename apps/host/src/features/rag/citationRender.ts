@@ -56,15 +56,17 @@ function quoteLine({ fragment, text, hit, verified }: Quote): string {
 const factLine = ({ tool, text, called }: ProjectFact): string =>
   `- ${tool}: ${text}${called ? "" : " — инструмент не вызывался"}`;
 
+/** Ответ по данным инструментов без опоры на фрагменты не показывает пустые «Источники» и «Цитаты». */
 function renderAnswer(answer: Extract<CitedAnswer, { kind: "answer" }>): string[] {
   const facts = answer.projectData.length > 0 ? ["", "Данные проекта:", ...answer.projectData.map(factLine)] : [];
+  const withProjectData = answer.projectData.length > 0;
+  const sources = answer.sources.length > 0 ? ["Источники:", ...answer.sources.map(sourceLine)] : ["Источники: нет"];
+  const quotes = answer.quotes.length > 0 ? ["Цитаты:", ...answer.quotes.map(quoteLine)] : ["Цитаты: нет"];
   return [
     answer.text,
     ...facts,
-    "",
-    ...(answer.sources.length > 0 ? ["Источники:", ...answer.sources.map(sourceLine)] : ["Источники: нет"]),
-    "",
-    ...(answer.quotes.length > 0 ? ["Цитаты:", ...answer.quotes.map(quoteLine)] : ["Цитаты: нет"]),
+    ...(withProjectData && answer.sources.length === 0 ? [] : ["", ...sources]),
+    ...(withProjectData && answer.quotes.length === 0 ? [] : ["", ...quotes]),
     ...problemLines(answer.problems),
   ];
 }

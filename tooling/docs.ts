@@ -9,7 +9,7 @@ const silentView = {
   config: () => {},
   indexBuilt: () => {},
   ragAnswer: () => {},
-  helpAnswer: () => {},
+  infoAnswer: () => {},
 };
 
 /** Реестр с заглушками обработчиков: нужны только имена, аргументы и описания команд. */
@@ -20,7 +20,7 @@ function stubRegistry() {
     config: () => [],
     ragIndex: async () => ({ lines: [], path: "" }),
     ragAsk: async () => ({ answer: "", fragments: [] }),
-    projectHelp: async () => ({ answer: "", fragments: [] }),
+    projectInfo: async () => ({ answer: "", fragments: [] }),
     view: silentView,
   });
 }

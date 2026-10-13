@@ -12,7 +12,7 @@ type CommandContext = {
   config: () => readonly ConfigRow[];
   ragIndex: () => Promise<RagOutcome>;
   ragAsk: (text: string) => Promise<RagReply>;
-  projectHelp: (text: string) => Promise<RagReply>;
+  projectInfo: (text: string) => Promise<RagReply>;
   view: CommandView;
 };
 
@@ -57,20 +57,26 @@ export function createCommands(context: CommandContext): readonly Command[] {
   const commands: Command[] = [
     askCommand(context),
     {
+      name: "info",
+      arguments: ["<вопрос...>"],
+      missingArgument: "Не указан вопрос о проекте.",
+      description: descriptions.info ?? "",
+      run: async (args) => {
+        const reply = await context.projectInfo(args.join(" "));
+        context.view.infoAnswer(reply.answer, reply.fragments, context.modelLabel());
+        return "continue";
+      },
+    },
+    {
       name: "help",
-      arguments: ["[вопрос...]"],
+      arguments: [],
       aliases: ["--help", "-h"],
       description: descriptions.help ?? "",
-      run: async (args) => {
-        const question = args.join(" ").trim();
-        if (question) {
-          const reply = await context.projectHelp(question);
-          context.view.helpAnswer(reply.answer, reply.fragments, context.modelLabel());
-        } else
-          context.view.help(
-            commands,
-            settingEntries.filter((entry) => !entry.secret),
-          );
+      run: async () => {
+        context.view.help(
+          commands,
+          settingEntries.filter((entry) => !entry.secret),
+        );
         return "continue";
       },
     },
