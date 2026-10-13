@@ -5,6 +5,7 @@ import { createAskHandler, type McpServers } from "./ask.ts";
 import { createCommands } from "./commands.ts";
 import { parseOptions, type ResolvedConfig, resolveConfig, showConfig } from "./config.ts";
 import type { CreateEmbeddings } from "./embeddings.ts";
+import { createProjectHelpHandler } from "./help.ts";
 import { type CreateModel, type ModelOptions, modelLabel } from "./model.ts";
 import { createRagHandlers } from "./rag.ts";
 import { createRagAnswerHandlers } from "./ragAnswer.ts";
@@ -20,7 +21,7 @@ export type RunOptions = Readonly<{
   createEmbeddings?: CreateEmbeddings;
   /** Node для запуска MCP-серверов; main.ts передаёт process.execPath. */
   nodeExecutable: string;
-  /** MCP-серверы для `ask`; по умолчанию — git-сервер с корнем `project.root`. */
+  /** MCP-серверы для `ask` и `help <вопрос>`; по умолчанию — git-сервер с корнем `project.root`. */
   mcpServers?: McpServers;
   withToolSource?: WithToolSource;
 }>;
@@ -37,18 +38,24 @@ export async function run(options: RunOptions): Promise<number> {
   const { cwd, createEmbeddings } = options;
   const rag = createRagHandlers({ cwd, getConfig, view, createEmbeddings });
   const ragAnswer = createRagAnswerHandlers({ cwd, getConfig, createModel, createEmbeddings, view });
+  const servers =
+    options.mcpServers ?? ((current: ResolvedConfig) => [gitServer(current, cwd, options.nodeExecutable)]);
+  const withToolSource = options.withToolSource ?? withStdioToolSource;
   const commands = createCommands({
-    ask: createAskHandler({
-      createModel,
-      getConfig,
-      view,
-      servers: options.mcpServers ?? ((current) => [gitServer(current, cwd, options.nodeExecutable)]),
-      withToolSource: options.withToolSource ?? withStdioToolSource,
-    }),
+    ask: createAskHandler({ createModel, getConfig, view, servers, withToolSource }),
     modelLabel: () => modelLabel(config),
     config: () => showConfig(config),
     ragIndex: rag.index,
     ragAsk: ragAnswer.ask,
+    projectHelp: createProjectHelpHandler({
+      cwd,
+      getConfig,
+      createModel,
+      createEmbeddings,
+      view,
+      servers,
+      withToolSource,
+    }),
     view,
   });
   let command: string[];

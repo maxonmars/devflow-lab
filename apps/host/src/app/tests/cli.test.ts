@@ -92,7 +92,7 @@ describe("CLI и REPL", () => {
   });
 
   it("отклоняет лишние и отсутствующие аргументы команд", async () => {
-    expect((await invoke(["help", "extra"], { cwd })).code).toBe(1);
+    expect((await invoke(["config", "show", "extra"], { cwd })).code).toBe(1);
     expect((await invoke(["ask"], { cwd })).code).toBe(1);
     expect((await invoke(["rag", "index", "extra"], { cwd })).code).toBe(1);
   });
