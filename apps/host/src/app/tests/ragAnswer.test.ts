@@ -32,7 +32,7 @@ describe("rag ask", () => {
     expect(result.output).toContain("Фрагменты:");
     expect(result.output).toMatch(/\n {2}1\. docs\/[ab]\.md › /);
     const request = requestOf(result);
-    expect(request.messages[0]?.content).toContain("полезный собеседник");
+    expect(request.messages[0]?.content).toContain("ассистент разработчика проекта");
     expect(request.messages[0]?.content).toContain("фрагменты документации");
     const user = String(request.messages[1]?.content);
     expect(user).toContain("### Фрагмент 1");

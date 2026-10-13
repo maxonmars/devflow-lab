@@ -23,7 +23,7 @@ describe("CLI и REPL", () => {
     expect(repl.output).toBe(cli.output);
     expect(repl.complete.mock.calls).toEqual(cli.complete.mock.calls);
     const request = cli.complete.mock.calls[0]?.[0] as ModelRequest;
-    expect(request.messages[0]?.content).toContain("полезный собеседник");
+    expect(request.messages[0]?.content).toContain("ассистент разработчика проекта");
     expect(request.tools).toEqual([]);
     expect(request.toolChoice).toBe("none");
   });

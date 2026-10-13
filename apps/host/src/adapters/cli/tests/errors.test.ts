@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { AgentError } from "../../../core/index.ts";
+import { McpToolSourceError } from "../../../features/mcp/index.ts";
 import { RagError } from "../../../features/rag/index.ts";
 import { describeError, InputError } from "../index.ts";
 
@@ -30,4 +31,17 @@ it("переводит коды Agent для tool calling", () => {
 it("переводит ошибки RAG на русский без текста провайдера", () => {
   expect(describeError(new RagError("INDEX_NOT_FOUND"))).toContain("rag index");
   expect(describeError(new RagError("MODEL_NOT_FOUND", { model: "bge-m3" }))).toContain("ollama pull bge-m3");
+});
+
+it("переводит ошибки McpToolSourceError, называя сервер и стадию таймаута", () => {
+  const describe = (code: ConstructorParameters<typeof McpToolSourceError>[0], stage?: "callTool") =>
+    describeError(new McpToolSourceError(code, { server: "git", ...(stage ? { stage } : {}) }));
+  expect(describe("SERVER_START_FAILED")).toBe("Не удалось запустить MCP-сервер «git».");
+  expect(describe("CONNECT_FAILED")).toContain("соединение");
+  expect(describe("TOOLS_UNSUPPORTED")).toContain("не объявил");
+  expect(describe("LIST_TOOLS_FAILED")).toContain("список инструментов");
+  expect(describe("CALL_TOOL_FAILED")).toContain("вызов инструмента");
+  expect(describe("UNSUPPORTED_TOOL_RESULT")).toContain("неподдерживаемый формат");
+  expect(describe("TIMEOUT", "callTool")).toContain("«git» на стадии callTool");
+  expect(describe("CLOSE_FAILED")).toContain("закрыть соединение");
 });

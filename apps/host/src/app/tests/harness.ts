@@ -4,7 +4,9 @@ import { Readable, Writable } from "node:stream";
 import { vi } from "vitest";
 import type { ModelCompletion, ModelRequest } from "../../core/index.ts";
 import type { EmbeddingPort } from "../../features/rag/index.ts";
+import type { McpServers } from "../ask.ts";
 import { run } from "../compose.ts";
+import type { WithToolSource } from "../toolSources.ts";
 
 export type CompleteMock = ReturnType<typeof vi.fn<(request: ModelRequest) => Promise<ModelCompletion>>>;
 
@@ -18,6 +20,8 @@ export type InvokeOptions = Readonly<{
   embeddings?: EmbeddingPort;
   /** Дополнительные переменные окружения процесса; ключ DeepSeek задаётся `authenticated`. */
   env?: Readonly<Record<string, string>>;
+  mcpServers?: McpServers;
+  withToolSource?: WithToolSource;
 }>;
 
 const echo = (request: ModelRequest): Promise<ModelCompletion> =>
@@ -48,6 +52,8 @@ export async function invoke(argv: string[], options: InvokeOptions) {
     env: { ...(options.authenticated === false ? {} : { LAB_LLM_API_KEY: "test-key" }), ...options.env },
     createModel,
     createEmbeddings,
+    ...(options.mcpServers ? { mcpServers: options.mcpServers } : {}),
+    ...(options.withToolSource ? { withToolSource: options.withToolSource } : {}),
     terminal: {
       input: Readable.from([options.input ?? ""]),
       interactive: options.interactive ?? false,
