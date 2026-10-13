@@ -1,0 +1,25 @@
+{
+  "name": "@devflow-lab/host",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=../../.env src/app/main.ts",
+    "start": "node --env-file-if-exists=../../.env dist/app/main.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
+    "mdast-util-from-markdown": "2.0.3",
+    "mdast-util-gfm": "3.1.0",
+    "micromark-extension-gfm": "3.0.0",
+    "openai": "7.10.0",
+    "yaml": "2.9.0",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/mdast": "4.0.4"
+  }
+}
