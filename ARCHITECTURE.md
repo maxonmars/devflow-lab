@@ -76,8 +76,7 @@ capability tools и адаптирует клиент к ToolSource; прини�
    проверяются по заголовкам. `renderReview` собирает итоговый Markdown с разделом «Контекст ревью».
 5. Markdown печатается через CliView и, если задан `review.outputFile`, пишется в файл через временный файл и `rename`.
 
-Workflow `.github/workflows/ai-review.yml` на событие `pull_request` запускает Ollama из Docker-образа (каталог моделей
-кэшируется), строит индекс, вызывает `review "origin/<base>"` и публикует файл одним комментарием PR с маркером
+Workflow `.github/workflows/ai-review.yml` на событие `pull_request` запускает Ollama из Docker-образа, строит индекс, вызывает `review "origin/<base>"` и публикует файл одним комментарием PR с маркером
 `<!-- ai-review -->`: существующий комментарий обновляется. Тот же текст уходит в Job Summary. PR из форков
 пропускаются: секретов у них нет.
 
