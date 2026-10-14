@@ -27,21 +27,15 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - uses: actions/cache@v6
-        with:
-          path: ~/.ollama/models
-          key: ollama-models-bge-m3-${{ env.OLLAMA_IMAGE }}
       - name: Start Ollama
         run: |
-          docker run -d --name ollama -p 11434:11434 -v "$HOME/.ollama:/root/.ollama" "$OLLAMA_IMAGE"
+          docker run -d --name ollama -p 11434:11434 "$OLLAMA_IMAGE"
           for attempt in $(seq 1 30); do
             curl -sf http://localhost:11434/api/tags >/dev/null && break
             if [ "$attempt" -eq 30 ]; then echo "Ollama не ответила за 30 с." >&2; exit 1; fi
             sleep 1
           done
           docker exec ollama ollama pull bge-m3
-          # Контейнер пишет файлы от root; без chown сохранение кэша их не прочитает.
-          sudo chown -R "$(id -u):$(id -g)" "$HOME/.ollama"
       - run: npm run dev -- rag index
       - name: Review
         run: npm run dev -- review "origin/$BASE_REF"
