@@ -9,6 +9,7 @@ import { createProjectInfoHandler } from "./info.ts";
 import { type CreateModel, type ModelOptions, modelLabel } from "./model.ts";
 import { createRagHandlers } from "./rag.ts";
 import { createRagAnswerHandlers } from "./ragAnswer.ts";
+import { createReviewHandler } from "./review.ts";
 import { gitServer } from "./serverEntrypoints.ts";
 import type { WithToolSource } from "./toolSources.ts";
 
@@ -21,7 +22,7 @@ export type RunOptions = Readonly<{
   createEmbeddings?: CreateEmbeddings;
   /** Node для запуска MCP-серверов; main.ts передаёт process.execPath. */
   nodeExecutable: string;
-  /** MCP-серверы для `ask` и `info`; по умолчанию — git-сервер с корнем `project.root`. */
+  /** MCP-серверы для `ask`, `info` и `review`; по умолчанию — git-сервер с корнем `project.root`. */
   mcpServers?: McpServers;
   withToolSource?: WithToolSource;
 }>;
@@ -41,21 +42,15 @@ export async function run(options: RunOptions): Promise<number> {
   const servers =
     options.mcpServers ?? ((current: ResolvedConfig) => [gitServer(current, cwd, options.nodeExecutable)]);
   const withToolSource = options.withToolSource ?? withStdioToolSource;
+  const projectOptions = { cwd, getConfig, createModel, createEmbeddings, view, servers, withToolSource };
   const commands = createCommands({
     ask: createAskHandler({ createModel, getConfig, view, servers, withToolSource }),
     modelLabel: () => modelLabel(config),
     config: () => showConfig(config),
     ragIndex: rag.index,
     ragAsk: ragAnswer.ask,
-    projectInfo: createProjectInfoHandler({
-      cwd,
-      getConfig,
-      createModel,
-      createEmbeddings,
-      view,
-      servers,
-      withToolSource,
-    }),
+    projectInfo: createProjectInfoHandler(projectOptions),
+    review: createReviewHandler(projectOptions),
     view,
   });
   let command: string[];

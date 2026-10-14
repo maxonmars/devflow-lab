@@ -6,7 +6,10 @@ import { wrapText } from "./text.ts";
 
 export type HelpSetting = Readonly<{ flag: string; type: string; description: string }>;
 export type ConfigRow = Readonly<{ key: string; value: string; source: string }>;
-export type CommandView = Pick<CliView, "answer" | "help" | "config" | "indexBuilt" | "ragAnswer" | "infoAnswer">;
+export type CommandView = Pick<
+  CliView,
+  "answer" | "help" | "config" | "indexBuilt" | "ragAnswer" | "infoAnswer" | "review"
+>;
 
 const fallbackWidth = 88;
 const columnGap = "  ";
@@ -38,6 +41,11 @@ export class CliView {
     const listed =
       fragments.length > 0 ? ["", this.#paint("key", "Фрагменты:"), ...fragments.map((line) => `  ${line}`)] : [];
     this.#block(`Ответ ассистента проекта · ${model}`, [text, ...listed]);
+  }
+
+  /** Markdown ревью печатается как есть: тот же текст уходит в файл и комментарий PR. */
+  review(markdown: string, model: string): void {
+    this.#block(`AI-ревью · ${model}`, [markdown]);
   }
 
   help(commands: readonly Command[], settings: readonly HelpSetting[]): void {

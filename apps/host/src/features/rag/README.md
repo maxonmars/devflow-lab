@@ -20,6 +20,10 @@
   параметры — `INVALID_RETRIEVAL_PARAMS`, оба до rewrite и поиска. Возвращает `answer`, итоговые `hits`, `contextChars`,
   строку поиска `query`, исходные `candidates` и длительности этапов `timings`.
   Необязательные `tools` (`ProjectTools`: `source` и `maxToolCalls`) включают ответ с инструментами проекта (ниже).
+- `searchQueries({ index, queries, candidateTopK, topK, threshold })` — поиск по нескольким запросам без rewrite и
+  генерации (`review`): по очереди `search(query, candidateTopK)` для каждого непустого запроса, порог `score >= threshold`,
+  объединение по `chunk_id` с максимальным score, сортировка по убыванию (при равенстве — порядок первого появления),
+  первые `topK` с рангами от 1. Пустой список запросов — `[]` без эмбеддингов; параметры проверяются до поиска.
 - `renderCitedAnswer(answer)`, `describeCitationProblem(problem)` — текст ответа для CLI и русские описания замечаний.
 - `ANSWER_PROMPTS`, `RETRIEVAL_MODES`, `checkRetrievalParams`, `MAX_TOP_K`, `SIMILARITY_RANGE`, `usesFilter` — режимы и
   единственная проверка параметров поиска.

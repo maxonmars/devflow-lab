@@ -57,6 +57,7 @@ export const settings = {
     type: "number",
   },
   "mcp.timeoutMs": { schema: positiveInteger, default: 10000, type: "number" },
+  "review.outputFile": { schema: z.string().trim().min(1).nullable(), default: null, type: "string" },
 } as const;
 
 export type SettingKey = keyof typeof settings;

@@ -7,6 +7,8 @@ it.each<[GitErrorCode, number | undefined, string]>([
   ["NO_COMMITS", undefined, "В репозитории ещё нет коммитов."],
   ["TIMEOUT", undefined, "git не ответил за отведённое время."],
   ["OUTPUT_TOO_LARGE", undefined, "Вывод git слишком большой; сузьте запрос путём."],
+  ["UNKNOWN_REF", undefined, "Ref базы не найден в репозитории."],
+  ["FILE_NOT_FOUND", undefined, "Файл не отслеживается в HEAD."],
   ["FAILED", 128, "git завершился с ошибкой (код 128)."],
   ["FAILED", undefined, "git завершился с ошибкой (код неизвестен)."],
 ])("%s → причина без stderr git", (code, exitCode, text) => {

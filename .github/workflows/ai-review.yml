@@ -1,0 +1,68 @@
+name: AI review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+  pull-requests: write
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+env:
+  OLLAMA_IMAGE: ollama/ollama:0.34.4
+jobs:
+  review:
+    # Секреты недоступны PR из форков.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          # Полная история: нужны origin/<base> и merge-base.
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - uses: actions/cache@v6
+        with:
+          path: ~/.ollama/models
+          key: ollama-models-bge-m3-${{ env.OLLAMA_IMAGE }}
+      - name: Start Ollama
+        run: |
+          docker run -d --name ollama -p 11434:11434 -v "$HOME/.ollama:/root/.ollama" "$OLLAMA_IMAGE"
+          for attempt in $(seq 1 30); do
+            curl -sf http://localhost:11434/api/tags >/dev/null && break
+            if [ "$attempt" -eq 30 ]; then echo "Ollama не ответила за 30 с." >&2; exit 1; fi
+            sleep 1
+          done
+          docker exec ollama ollama pull bge-m3
+          # Контейнер пишет файлы от root; без chown сохранение кэша их не прочитает.
+          sudo chown -R "$(id -u):$(id -g)" "$HOME/.ollama"
+      - run: npm run dev -- rag index
+      - name: Review
+        run: npm run dev -- review "origin/$BASE_REF"
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          LAB_LLM_API_KEY: ${{ secrets.LAB_LLM_API_KEY }}
+          LAB_LLM_TIMEOUT_MS: "120000"
+          LAB_LLM_MAX_OUTPUT_TOKENS: "4096"
+          LAB_REVIEW_OUTPUT_FILE: .local/review.md
+      - run: cat .local/review.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          { echo "<!-- ai-review -->"; cat .local/review.md; } > .local/body.md
+          ID=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- ai-review -->"))) | .id' \
+            | head -n1)
+          if [ -n "$ID" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$ID" -F body=@.local/body.md >/dev/null
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@.local/body.md >/dev/null
+          fi
