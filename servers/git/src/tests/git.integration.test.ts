@@ -2,7 +2,15 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { listFiles, readBranch, readDiff, readStatus } from "../git/readers.ts";
+import {
+  listFiles,
+  MAX_FILE_CHARS,
+  readBranch,
+  readChangedFiles,
+  readDiff,
+  readFile,
+  readStatus,
+} from "../git/readers.ts";
 import { createGitRunner, describeGitError, GitError } from "../index.ts";
 import { git, runnerFor, tempRepository, writeFiles } from "./support.ts";
 
@@ -81,5 +89,82 @@ describe("git на настоящем репозитории", () => {
     // `cat-file --batch` ждёт запросы из stdin, который execFile не закрывает: команда не завершится сама.
     const waiting = createGitRunner({ root, env: { PATH: process.env.PATH ?? "" }, timeoutMs: 200 });
     expect(await codeOf(waiting(["cat-file", "--batch"]))).toBe("TIMEOUT");
+  });
+});
+
+describe("ветка относительно базы и файлы HEAD", () => {
+  /** main: README, guide, rename-me; feature: M README, A src/new.ts, D guide, R rename-me → renamed; затем коммит в main. */
+  function branchFromMain(): void {
+    writeFiles(root, { "docs/rename-me.md": `# Переименуемый\n\n${"строка текста\n".repeat(20)}` });
+    git(root, "add", ".");
+    git(root, "commit", "--quiet", "-m", "Файл для переименования");
+    git(root, "switch", "--quiet", "-c", "feature");
+    writeFiles(root, { "README.md": "# Проект\n\nВ ветке\n", "src/new.ts": "export const x = 1;\n" });
+    git(root, "rm", "--quiet", "docs/guide.md");
+    git(root, "mv", "docs/rename-me.md", "docs/renamed.md");
+    git(root, "add", ".");
+    git(root, "commit", "--quiet", "-m", "Изменения ветки");
+    git(root, "switch", "--quiet", "main");
+    writeFiles(root, { "late.md": "# Позже\n" });
+    git(root, "add", ".");
+    git(root, "commit", "--quiet", "-m", "Коммит в main после ответвления");
+    git(root, "switch", "--quiet", "feature");
+  }
+
+  it("A, M, D и R относительно merge-base; коммиты main после ответвления не входят", async () => {
+    branchFromMain();
+    const runGit = runnerFor(root);
+    const info = await readChangedFiles(runGit, "main");
+    expect(info).toMatchObject({ total: 4, truncated: false });
+    expect(info.files).toEqual(
+      expect.arrayContaining([
+        { status: "M", path: "README.md" },
+        { status: "A", path: "src/new.ts" },
+        { status: "D", path: "docs/guide.md" },
+        { status: "R", path: "docs/renamed.md", from: "docs/rename-me.md" },
+      ]),
+    );
+    const diff = await readDiff(runGit, { staged: false, base: "main", path: "README.md" });
+    expect(diff.diff).toContain("+В ветке");
+    expect((await readDiff(runGit, { staged: false, base: "main" })).stat).not.toContain("late.md");
+  });
+
+  it("неизвестный ref базы — UNKNOWN_REF", async () => {
+    const runGit = runnerFor(root);
+    expect(await codeOf(readChangedFiles(runGit, "no-such-ref"))).toBe("UNKNOWN_REF");
+    expect(await codeOf(readDiff(runGit, { staged: false, base: "no-such-ref" }))).toBe("UNKNOWN_REF");
+  });
+
+  it("read_file: содержимое HEAD; неотслеживаемый и отсутствующий файл — FILE_NOT_FOUND", async () => {
+    writeFiles(root, { "README.md": "# Изменён на диске\n", "draft.md": "# Черновик\n" });
+    const runGit = runnerFor(root);
+    expect(await readFile(runGit, "README.md")).toMatchObject({ content: "# Проект\n", binary: false });
+    expect(await codeOf(readFile(runGit, "draft.md"))).toBe("FILE_NOT_FOUND");
+    expect(await codeOf(readFile(runGit, "missing.md"))).toBe("FILE_NOT_FOUND");
+  });
+
+  it("read_file: двоичный файл без содержимого, длинный обрезается по кодовым точкам", async () => {
+    writeFiles(root, { "image.bin": "PNG\0\x01", "long.md": "ё".repeat(MAX_FILE_CHARS + 5) });
+    git(root, "add", ".");
+    git(root, "commit", "--quiet", "-m", "Двоичный и длинный");
+    const runGit = runnerFor(root);
+    expect(await readFile(runGit, "image.bin")).toMatchObject({ binary: true, content: "" });
+    const long = await readFile(runGit, "long.md");
+    expect(long).toMatchObject({ totalChars: MAX_FILE_CHARS + 5, truncated: true });
+    expect([...long.content]).toHaveLength(MAX_FILE_CHARS);
+  });
+
+  it("корень-подкаталог: пути изменений и read_file — от корня проекта", async () => {
+    branchFromMain();
+    const runGit = runnerFor(join(root, "docs"));
+    const info = await readChangedFiles(runGit, "main");
+    expect(info.files).toEqual(
+      expect.arrayContaining([
+        { status: "D", path: "guide.md" },
+        { status: "R", path: "renamed.md", from: "rename-me.md" },
+      ]),
+    );
+    expect(info.total).toBe(2);
+    expect((await readFile(runGit, "renamed.md")).content).toContain("# Переименуемый");
   });
 });

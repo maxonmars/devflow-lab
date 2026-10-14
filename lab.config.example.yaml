@@ -19,3 +19,4 @@ rag.candidateTopK: 10
 rag.topK: 5
 rag.similarityThreshold: 0.55
 mcp.timeoutMs: 10000
+# review.outputFile: .local/review.md

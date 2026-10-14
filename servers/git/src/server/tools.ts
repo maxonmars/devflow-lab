@@ -1,15 +1,17 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod/v4";
 import { describeGitError } from "../git/errors.ts";
-import { listFiles, readBranch, readDiff, readStatus } from "../git/readers.ts";
+import { listFiles, readBranch, readChangedFiles, readDiff, readFile, readStatus } from "../git/readers.ts";
 import type { RunGit } from "../git/run.ts";
-import { branchText, diffText, filesText, statusText } from "./format.ts";
+import { branchText, changesText, diffText, filesText, fileText, statusText } from "./format.ts";
 
 export const GIT_TOOL_NAMES = {
   branch: "git_branch",
   status: "git_status",
-  diff: "git_diff",
   files: "list_files",
+  diff: "git_diff",
+  changedFiles: "git_changed_files",
+  readFile: "read_file",
 } as const;
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } as const;
@@ -25,6 +27,16 @@ const pathInput = z
   .refine(insideRoot, "Путь должен быть относительным и не выходить за корень проекта.")
   .describe("Необязательный путь внутри проекта относительно его корня, например «docs» или «README.md».");
 
+// Без `..`, `:`, пробелов и ведущего `-`: ref не превращается в диапазон, путь в дереве или опцию git.
+const refInput = z
+  .string()
+  .trim()
+  .min(1)
+  .max(200)
+  .regex(/^[A-Za-z0-9_][A-Za-z0-9._/@^~-]*$/, "Недопустимые символы в ref базы.")
+  .refine((ref) => !ref.includes(".."), "Ref базы не может содержать «..».")
+  .describe("Базовая ветка или коммит, например origin/main.");
+
 const branchOutput = z.object({
   branch: z.string().nullable(),
   head: z.object({ sha: z.string(), subject: z.string() }).nullable(),
@@ -32,6 +44,18 @@ const branchOutput = z.object({
 const statusOutput = z.object({ lines: z.array(z.string()), total: z.number(), truncated: z.boolean() });
 const diffOutput = z.object({ stat: z.string(), diff: z.string(), totalChars: z.number(), truncated: z.boolean() });
 const filesOutput = z.object({ files: z.array(z.string()), total: z.number(), truncated: z.boolean() });
+const changesOutput = z.object({
+  files: z.array(z.object({ status: z.string(), path: z.string(), from: z.string().optional() })),
+  total: z.number(),
+  truncated: z.boolean(),
+});
+const fileOutput = z.object({
+  path: z.string(),
+  content: z.string(),
+  totalChars: z.number(),
+  truncated: z.boolean(),
+  binary: z.boolean(),
+});
 
 type Reply = { content: { type: "text"; text: string }[]; structuredContent?: Record<string, unknown>; isError?: true };
 
@@ -48,7 +72,8 @@ async function reply<T extends Record<string, unknown>>(read: () => Promise<T>, 
   }
 }
 
-export function registerGitTools(server: McpServer, runGit: RunGit): void {
+/** Текущее состояние репозитория: ветка, статус, отслеживаемые файлы. */
+function registerStateTools(server: McpServer, runGit: RunGit): void {
   server.registerTool(
     GIT_TOOL_NAMES.branch,
     {
@@ -70,25 +95,6 @@ export function registerGitTools(server: McpServer, runGit: RunGit): void {
     () => reply(() => readStatus(runGit), statusText),
   );
   server.registerTool(
-    GIT_TOOL_NAMES.diff,
-    {
-      description:
-        "Изменения в проекте: сводка git diff --stat и сам diff, обрезанный по длине. По умолчанию — изменения " +
-        "рабочей копии, не добавленные в индекс; staged: true — изменения в индексе. path сужает diff до файла или папки.",
-      inputSchema: z.object({
-        staged: z.boolean().default(false).describe("true — показать изменения, уже добавленные в индекс."),
-        path: pathInput.optional(),
-      }),
-      outputSchema: diffOutput,
-      annotations: READ_ONLY,
-    },
-    ({ staged, path }) =>
-      reply(
-        () => readDiff(runGit, { staged, ...(path ? { path } : {}) }),
-        (info) => diffText(info, staged),
-      ),
-  );
-  server.registerTool(
     GIT_TOOL_NAMES.files,
     {
       description:
@@ -104,4 +110,66 @@ export function registerGitTools(server: McpServer, runGit: RunGit): void {
         (info) => filesText(info, path),
       ),
   );
+}
+
+/** Изменения: рабочая копия, индекс или ветка относительно базы, а также файлы HEAD. */
+function registerChangeTools(server: McpServer, runGit: RunGit): void {
+  server.registerTool(
+    GIT_TOOL_NAMES.diff,
+    {
+      description:
+        "Изменения в проекте: сводка git diff --stat и сам diff, обрезанный по длине. По умолчанию — изменения " +
+        "рабочей копии, не добавленные в индекс; staged: true — изменения в индексе; base — изменения ветки " +
+        "относительно базы (base...HEAD). path сужает diff до файла или папки.",
+      inputSchema: z
+        .object({
+          staged: z.boolean().default(false).describe("true — показать изменения, уже добавленные в индекс."),
+          path: pathInput.optional(),
+          base: refInput.optional(),
+        })
+        .refine((input) => !(input.base !== undefined && input.staged), "base нельзя сочетать со staged: true."),
+      outputSchema: diffOutput,
+      annotations: READ_ONLY,
+    },
+    ({ staged, path, base }) =>
+      reply(
+        () => readDiff(runGit, { staged, ...(path ? { path } : {}), ...(base !== undefined ? { base } : {}) }),
+        (info) => diffText(info, staged, base),
+      ),
+  );
+  server.registerTool(
+    GIT_TOOL_NAMES.changedFiles,
+    {
+      description:
+        "Список файлов проекта, изменённых в текущей ветке относительно базы (base...HEAD, от merge-base), со " +
+        "статусом: A — добавлен, M — изменён, D — удалён, R — переименован, C — скопирован, T — сменился тип.",
+      inputSchema: z.object({ base: refInput }),
+      outputSchema: changesOutput,
+      annotations: READ_ONLY,
+    },
+    ({ base }) =>
+      reply(
+        () => readChangedFiles(runGit, base),
+        (info) => changesText(info, base),
+      ),
+  );
+  server.registerTool(
+    GIT_TOOL_NAMES.readFile,
+    {
+      description:
+        "Содержимое отслеживаемого файла проекта в HEAD, обрезанное по длине. Неотслеживаемые и игнорируемые " +
+        "файлы, а также незакоммиченные изменения не видны; двоичный файл не показывается.",
+      inputSchema: z.object({
+        path: pathInput.describe("Путь к файлу внутри проекта относительно его корня, например «README.md»."),
+      }),
+      outputSchema: fileOutput,
+      annotations: READ_ONLY,
+    },
+    ({ path }) => reply(() => readFile(runGit, path), fileText),
+  );
+}
+
+export function registerGitTools(server: McpServer, runGit: RunGit): void {
+  registerStateTools(server, runGit);
+  registerChangeTools(server, runGit);
 }

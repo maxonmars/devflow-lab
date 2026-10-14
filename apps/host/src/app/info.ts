@@ -3,7 +3,7 @@ import { type McpServers, systemPrompt } from "./ask.ts";
 import { fragmentLines, prepareRag, type RagAnswerHandlerOptions, type RagReply } from "./ragAnswer.ts";
 import { combineToolSources, type WithToolSource, withSessions } from "./toolSources.ts";
 
-/** Лимит вызовов инструментов за ответ `info`: ветка, статус, diff и список файлов — по одному разу. */
+/** Лимит вызовов инструментов за ответ `info`: до четырёх вызовов за ответ. */
 export const INFO_MAX_TOOL_CALLS = 4;
 
 export type ProjectInfoOptions = RagAnswerHandlerOptions &

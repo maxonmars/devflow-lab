@@ -13,6 +13,7 @@ type CommandContext = {
   ragIndex: () => Promise<RagOutcome>;
   ragAsk: (text: string) => Promise<RagReply>;
   projectInfo: (text: string) => Promise<RagReply>;
+  review: (base: string) => Promise<string>;
   view: CommandView;
 };
 
@@ -90,6 +91,16 @@ export function createCommands(context: CommandContext): readonly Command[] {
       },
     },
     ...ragCommands(context),
+    {
+      name: "review",
+      arguments: ["<база>"],
+      missingArgument: "Не указана базовая ветка или коммит для ревью.",
+      description: descriptions.review ?? "",
+      run: async (args) => {
+        context.view.review(await context.review(args.join(" ")), context.modelLabel());
+        return "continue";
+      },
+    },
     {
       name: "exit",
       arguments: [],

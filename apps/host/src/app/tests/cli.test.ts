@@ -102,7 +102,7 @@ describe("CLI и REPL", () => {
     const result = await invoke([], { cwd, input: "Вопрос\n/exit\n", interactive: true });
     expect(result.output.match(/── devflow-lab ──/g)).toHaveLength(1);
     expect(result.output.match(/Модель: deepseek · deepseek-flash/g)).toHaveLength(1);
-    expect(result.output).toContain("/ask · /info · /help · /config show · /rag index · /rag ask · /exit");
+    expect(result.output).toContain("/ask · /info · /help · /config show · /rag index · /rag ask · /review · /exit");
     expect(result.output.match(/devflow-lab > /g)).toHaveLength(2);
   });
 

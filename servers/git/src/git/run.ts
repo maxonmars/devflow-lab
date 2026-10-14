@@ -29,6 +29,7 @@ function toGitError(error: ExecFileException, stderr: string): GitError {
   if (error.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") return new GitError("OUTPUT_TOO_LARGE");
   if (error.killed) return new GitError("TIMEOUT");
   if (/not a git repository/i.test(stderr)) return new GitError("NOT_A_REPOSITORY");
+  if (/does not exist in 'HEAD'|exists on disk, but not in 'HEAD'/.test(stderr)) return new GitError("FILE_NOT_FOUND");
   if (/does not have any commits|ambiguous argument 'HEAD'|bad default revision 'HEAD'/i.test(stderr)) {
     return new GitError("NO_COMMITS");
   }

@@ -4,6 +4,8 @@ export type GitErrorCode =
   | "NO_COMMITS"
   | "TIMEOUT"
   | "OUTPUT_TOO_LARGE"
+  | "UNKNOWN_REF"
+  | "FILE_NOT_FOUND"
   | "FAILED";
 
 export class GitError extends Error {
@@ -33,6 +35,10 @@ export function describeGitError(error: unknown): string {
       return "git не ответил за отведённое время.";
     case "OUTPUT_TOO_LARGE":
       return "Вывод git слишком большой; сузьте запрос путём.";
+    case "UNKNOWN_REF":
+      return "Ref базы не найден в репозитории.";
+    case "FILE_NOT_FOUND":
+      return "Файл не отслеживается в HEAD.";
     case "FAILED":
       return `git завершился с ошибкой (код ${error.exitCode ?? "неизвестен"}).`;
   }

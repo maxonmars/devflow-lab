@@ -10,6 +10,7 @@ const silentView = {
   indexBuilt: () => {},
   ragAnswer: () => {},
   infoAnswer: () => {},
+  review: () => {},
 };
 
 /** Реестр с заглушками обработчиков: нужны только имена, аргументы и описания команд. */
@@ -21,6 +22,7 @@ function stubRegistry() {
     ragIndex: async () => ({ lines: [], path: "" }),
     ragAsk: async () => ({ answer: "", fragments: [] }),
     projectInfo: async () => ({ answer: "", fragments: [] }),
+    review: async () => "",
     view: silentView,
   });
 }

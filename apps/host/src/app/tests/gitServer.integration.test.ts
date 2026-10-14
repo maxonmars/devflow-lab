@@ -49,7 +49,14 @@ describe("git-сервер из host", () => {
     expect(result.error).toBe("");
     expect(result.code).toBe(0);
     const first = complete.mock.calls[0]?.[0] as ModelRequest;
-    expect(first.tools.map((tool) => tool.name)).toEqual(["git_branch", "git_status", "git_diff", "list_files"]);
+    expect(first.tools.map((tool) => tool.name)).toEqual([
+      "git_branch",
+      "git_status",
+      "list_files",
+      "git_diff",
+      "git_changed_files",
+      "read_file",
+    ]);
     expect(result.output).toContain("MCP: git › git_branch — выполнено");
     expect(result.output).toContain("Ветка: feature/demo");
   });
