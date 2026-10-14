@@ -40,9 +40,9 @@ jobs:
             sleep 1
           done
           docker exec ollama ollama pull bge-m3
-          # Контейнер пишет файлы от root; без chown сохранение кэша их не прочитает.
-          sudo chown -R "$(id -u):$(id -g)" "$HOME/.ollama"
       - run: npm run dev -- rag index
+      # Контейнер пишет в models/ от root, в том числе во время rag index; сохранение кэша читает их от runner.
+      - run: sudo chown -R "$(id -u):$(id -g)" "$HOME/.ollama"
       - name: Review
         run: npm run dev -- review "origin/$BASE_REF"
         env:
