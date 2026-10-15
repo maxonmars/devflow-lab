@@ -1,0 +1,6 @@
+# Ассистент поддержки Acme Notes: `npm run dev -- --config-file examples/support-product/support.config.yaml …`.
+# Пути — от корня репозитория devflow-lab, запускать из него.
+project.root: examples/support-product
+rag.include: README.md,docs/**/*.md
+rag.outputDir: .local/rag-support
+support.dataFile: support/tickets.json

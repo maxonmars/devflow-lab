@@ -8,7 +8,7 @@ export type HelpSetting = Readonly<{ flag: string; type: string; description: st
 export type ConfigRow = Readonly<{ key: string; value: string; source: string }>;
 export type CommandView = Pick<
   CliView,
-  "answer" | "help" | "config" | "indexBuilt" | "ragAnswer" | "infoAnswer" | "review"
+  "answer" | "help" | "config" | "indexBuilt" | "ragAnswer" | "infoAnswer" | "review" | "support"
 >;
 
 const fallbackWidth = 88;
@@ -46,6 +46,11 @@ export class CliView {
   /** Markdown ревью печатается как есть: тот же текст уходит в файл и комментарий PR. */
   review(markdown: string, model: string): void {
     this.#block(`AI-ревью · ${model}`, [markdown]);
+  }
+
+  /** Markdown ответа поддержки печатается как есть: его готовит фича support. */
+  support(markdown: string, model: string): void {
+    this.#block(`Ответ поддержки · ${model}`, [markdown]);
   }
 
   help(commands: readonly Command[], settings: readonly HelpSetting[]): void {

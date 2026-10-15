@@ -1,5 +1,5 @@
-import type { CliView } from "../adapters/cli/index.ts";
-import type { ToolDefinition, ToolSource } from "../core/index.ts";
+import { type CliView, InputError } from "../adapters/cli/index.ts";
+import type { JsonObject, ToolDefinition, ToolSource } from "../core/index.ts";
 import type { StdioToolSourceOptions } from "../features/mcp/index.ts";
 
 /** Открывает MCP-сессию на время `use`; реализация по умолчанию — `withStdioToolSource`, в тестах — подмена. */
@@ -65,4 +65,11 @@ export function withSessions<T>(
   return open(next, (source) =>
     withSessions(rest, open, view, use, [...opened, observedToolSource(source, view, next.serverName)]),
   );
+}
+
+/** Текст результата инструмента; `isError` — InputError с текстом сервера: причину формулирует сервер или схема. */
+export async function callText(source: ToolSource, name: string, args: JsonObject): Promise<string> {
+  const result = await source.callTool({ name, arguments: args });
+  if (result.isError) throw new InputError(result.content);
+  return result.content;
 }

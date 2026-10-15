@@ -2,10 +2,10 @@
 
 ## Текущее приложение
 
-Исполняемый workspace `apps/host` и MCP-сервер `servers/git` — отдельный workspace и процесс. Общих библиотек нет.
-`app/main.ts` принимает окружение, argv и потоки; `app/compose.ts` собирает приложение. Модель (DeepSeek или локальная
-по `llm.provider`) создаётся лениво при первом `ask`, `rag ask`, `info <вопрос>` или `review <база>`, поэтому справка,
-настройки и `rag index` работают без ключа.
+Исполняемый workspace `apps/host` и MCP-серверы `servers/git` и `servers/support` — отдельные workspace и процессы.
+Общих библиотек нет. `app/main.ts` принимает окружение, argv и потоки; `app/compose.ts` собирает приложение. Модель
+(DeepSeek или локальная по `llm.provider`) создаётся лениво при первом `ask`, `rag ask`, `info <вопрос>`,
+`review <база>` или `support <тикет> <вопрос...>`, поэтому справка, настройки и `rag index` работают без ключа.
 
 ```mermaid
 flowchart LR
@@ -15,6 +15,7 @@ flowchart LR
     App --> Rag[features/rag]
     App --> Mcp[features/mcp]
     App --> Review[features/review]
+    App --> Support[features/support]
     CLI --> Core
     LLM --> Core
     LLM --> DeepSeek[DeepSeek API]
@@ -25,8 +26,11 @@ flowchart LR
     Rag --> Index[(.local/rag/index.json)]
     Mcp --> Core
     Review --> Core
+    Support --> Core
     Mcp -->|stdio, процесс на реплику| Git[servers/git]
     Git -->|execFile git, только чтение| Repo[(git-репозиторий project.root)]
+    Mcp -->|stdio, процесс на команду support| SupportServer[servers/support]
+    SupportServer -->|чтение одного файла| Tickets[(JSON support.dataFile)]
 ```
 
 CLI получает реестр обработчиков и потоки, не создаёт агента и не знает SDK. Вывод оформляет один CliView: обработчики
@@ -79,6 +83,22 @@ capability tools и адаптирует клиент к ToolSource; прини�
 Workflow `.github/workflows/ai-review.yml` на событие `pull_request` запускает Ollama из Docker-образа, строит индекс, вызывает `review "origin/<base>"` и публикует файл одним комментарием PR с маркером
 `<!-- ai-review -->`: существующий комментарий обновляется. Тот же текст уходит в Job Summary. PR из форков
 пропускаются: секретов у них нет.
+
+## support и ассистент поддержки
+
+`support <тикет> <вопрос...>` (app/support.ts, ADR 0004) повторяет схему `review` для другого сервера: проверяет
+параметры поиска, создаёт модель и открывает индекс, затем открывает сессию только сервера поддержки
+(`--data <project.root>/<support.dataFile>`); в `ask`, `info` и `review` его нет.
+
+1. `get_ticket { id }` — тикет, клиент и переписка текстом; host текст не разбирает. Ошибка — `InputError` текстом
+   сервера, модель не вызывается.
+2. `searchQueries` — два запроса: вопрос клиента и начало текста тикета (`SUPPORT_QUERY_CHARS`); порог и `rag.topK`.
+   Пустой отбор не отменяет вызов.
+3. `answerSupport` (features/support) — один вызов модели без инструментов с `prompts/support.md` без `app/system.md`;
+   проверяются разделы «Ответ», «Источники», «Данные тикета» и номера `[N]` в «Источниках». `renderSupport` собирает
+   Markdown с «Контекстом ответа», CliView печатает его блоком «Ответ поддержки».
+
+Демо-продукт с документацией, тикетами и конфигом — `examples/support-product/`, индекс — `.local/rag-support`.
 
 ## Песочница
 

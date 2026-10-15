@@ -16,6 +16,9 @@
 - `review <база>` (app/review.ts, ADR 0003) создаёт модель и индекс, затем открывает ту же MCP-сессию, но git-инструменты
   вызывает сам и разбирает текст `git_changed_files` по контракту README сервера; модель вызывается один раз без
   инструментов. Ошибка git-инструмента показывается текстом сервера: его готовит `describeGitError`, без stderr git.
+- `support <тикет> <вопрос...>` (app/support.ts, ADR 0004) открывает только сервер поддержки (`supportServer`, не из
+  `RunOptions.mcpServers`), сам вызывает `get_ticket` и передаёт текст модели не разбирая; модель — один раз без
+  инструментов, инструкция — `features/support/prompts/support.md` без `app/system.md`.
 - CLI отображает AgentError, RagError и McpToolSourceError; не печатает необработанные ошибки SDK, тела ответов Ollama,
   аргументы и результаты инструментов, значения настроек.
 - Команда описывается в app/commands.ts один раз; CLI и REPL используют один dispatcher.

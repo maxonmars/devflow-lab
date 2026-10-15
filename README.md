@@ -5,7 +5,9 @@
 субагенты; план — [docs/course.md](docs/course.md). Каркас собран из rag-lab и mcp-lab
 ([ADR 0001](docs/adr/0001-repository-foundation.md)). Сейчас готовы ассистент проекта `info <вопрос>`: он отвечает по
 документации (RAG) и сам смотрит в git через MCP-сервер ([ADR 0002](docs/adr/0002-project-info.md)), — и AI-ревью PR
-`review <база>`, которое GitHub Actions публикует комментарием в PR ([ADR 0003](docs/adr/0003-ai-review.md)).
+`review <база>`, которое GitHub Actions публикует комментарием в PR ([ADR 0003](docs/adr/0003-ai-review.md)), и
+ассистент поддержки `support <тикет> <вопрос...>`: ответ клиенту по документации продукта и данным тикета
+([ADR 0004](docs/adr/0004-support-assistant.md)).
 
 ## Запуск
 
@@ -19,7 +21,7 @@ npm run dev -- info "Какая сейчас ветка и что в ней из
 ```
 
 Ollama должна быть запущена (`ollama serve`) — [docs/ollama.md](docs/ollama.md). Ключ DeepSeek нужен для `ask`,
-`rag ask`, `info <вопрос>` и `review <база>` при `llm.provider: deepseek`: `LAB_LLM_API_KEY` в корневом `.env` или окружении процесса. С
+`rag ask`, `info <вопрос>`, `review <база>` и `support` при `llm.provider: deepseek`: `LAB_LLM_API_KEY` в корневом `.env` или окружении процесса. С
 `--llm-provider local` те же команды идут в локальный OpenAI-совместимый сервер без ключа. Индекс лежит в
 `.local/rag/index.json` (каталог `.local/` не попадает в git).
 
@@ -61,6 +63,21 @@ Workflow [ai-review.yml](.github/workflows/ai-review.yml) запускается
 Ollama в раннере, `rag index`, `review "origin/<base>"`. Результат — один комментарий PR, который обновляется на каждый
 push, и Job Summary. Нужен секрет репозитория `LAB_LLM_API_KEY`; PR из форков не ревьюятся.
 
+## Ассистент поддержки
+
+`support <тикет> <вопрос...>` (в REPL — `/support T-1001 вопрос`) отвечает клиенту вымышленного продукта
+[Acme Notes](examples/support-product/README.md): MCP-сервер [support](servers/support/README.md) отдаёт тикет, данные
+клиента и переписку из JSON `support.dataFile`, RAG находит фрагменты документации продукта, модель один раз пишет
+разделы «Ответ», «Источники» и «Данные тикета». Один и тот же вопрос по разным тикетам даёт разные ответы:
+заблокированному аккаунту — про блокировку и сброс пароля, аккаунту с SSO — про вход через SSO.
+
+```sh
+npm run dev -- --config-file examples/support-product/support.config.yaml rag index
+npm run dev -- --config-file examples/support-product/support.config.yaml support T-1002 "Почему не работает авторизация?"
+```
+
+Команды запускаются из корня репозитория; полный сценарий — [демо](docs/demos/support-assistant.md).
+
 ## RAG по документации проекта
 
 `rag index` собирает корпус из Markdown-файлов `rag.include` внутри `project.root`: по умолчанию это сам репозиторий —
@@ -79,9 +96,10 @@ npm run dev -- --project-root ../rag-lab rag ask "Как устроен шлюз
 ## MCP
 
 `ask` и `info <вопрос>` открывают сессии MCP-серверов проекта на каждую реплику и дают модели их инструменты;
-`review <база>` открывает ту же сессию и вызывает git-инструменты сам. Сейчас
-сервер один — [git](servers/git/README.md) с корнем `project.root`; его инструменты только читают, не выходят за корень
-и не видят игнорируемых файлов вроде `.env` ([правила серверов](servers/README.md)).
+`review <база>` открывает ту же сессию и вызывает git-инструменты сам. Это сервер [git](servers/git/README.md) с корнем
+`project.root`; его инструменты только читают, не выходят за корень и не видят игнорируемых файлов вроде `.env`
+([правила серверов](servers/README.md)). `support` открывает только сервер [support](servers/support/README.md): он
+читает один JSON-файл тикетов.
 
 Настройки — YAML-файл, env (`LAB_…`) и флаги; приоритет и список — [docs/configuration.md](docs/configuration.md),
 команды — [docs/commands.md](docs/commands.md). Пример файла — [lab.config.example.yaml](lab.config.example.yaml).
@@ -93,8 +111,10 @@ npm run dev -- --project-root ../rag-lab rag ask "Как устроен шлюз
 - [Фича mcp](apps/host/src/features/mcp/README.md) — stdio-клиент и окружение серверов.
 - [git MCP server](servers/git/README.md) — инструменты, песочница, ошибки.
 - [Фича review](apps/host/src/features/review/README.md) — сообщение, промпт и итоговый Markdown ревью.
+- [Фича support](apps/host/src/features/support/README.md) и [support MCP server](servers/support/README.md) —
+  ответ клиенту по тикету.
 - Демо: [RAG по самому репозиторию](docs/demos/project-rag.md), [ассистент проекта](docs/demos/project-info.md),
-  [AI-ревью PR](docs/demos/ai-review.md).
+  [AI-ревью PR](docs/demos/ai-review.md), [ассистент поддержки](docs/demos/support-assistant.md).
 
 ## Проверки
 

@@ -8,6 +8,7 @@ import { files, localPath, workspacePaths } from "./files.ts";
 
 const TOOL_LIST_SMOKE_TIMEOUT_MS = 5_000;
 const GIT_TOOLS = ["git_branch", "git_changed_files", "git_diff", "git_status", "list_files", "read_file"];
+const SUPPORT_TOOLS = ["get_ticket"];
 
 /** Собранный сервер из другого каталога: сверяет отсортированный listTools с ожидаемым набором инструментов. */
 async function toolListSmoke(cwd: string, args: readonly string[], expectedTools: readonly string[]): Promise<void> {
@@ -47,13 +48,20 @@ try {
     env: {},
     stdio: "pipe",
   });
-  for (const name of ["info", "review", "rag index", "rag ask", "config show"]) {
+  for (const name of ["info", "support", "review", "rag index", "rag ask", "config show"]) {
     if (!help.includes(name)) throw new Error(`В собранной справке отсутствует ${name}.`);
   }
   execFileSync(process.execPath, [main, "config", "show"], { cwd: temporary, env: {}, stdio: "pipe" });
   console.log("Сборка и запуск CLI из другого каталога: OK.");
   await toolListSmoke(temporary, [join(root, "servers/git/dist/app/main.js"), "--root", root], GIT_TOOLS);
   console.log("Запуск собранного git MCP server из другого каталога: OK.");
+  const supportData = join(root, "examples/support-product/support/tickets.json");
+  await toolListSmoke(
+    temporary,
+    [join(root, "servers/support/dist/app/main.js"), "--data", supportData],
+    SUPPORT_TOOLS,
+  );
+  console.log("Запуск собранного support MCP server из другого каталога: OK.");
 } finally {
   rmSync(temporary, { recursive: true, force: true });
 }

@@ -1,4 +1,4 @@
-import type { Command, CommandView, ConfigRow } from "../adapters/cli/index.ts";
+import { type Command, type CommandView, type ConfigRow, InputError } from "../adapters/cli/index.ts";
 import { sections } from "./markdown.ts";
 import type { RagOutcome } from "./rag.ts";
 import type { RagReply } from "./ragAnswer.ts";
@@ -14,6 +14,7 @@ type CommandContext = {
   ragAsk: (text: string) => Promise<RagReply>;
   projectInfo: (text: string) => Promise<RagReply>;
   review: (base: string) => Promise<string>;
+  support: (ticketId: string, question: string) => Promise<string>;
   view: CommandView;
 };
 
@@ -54,6 +55,21 @@ function askCommand(context: CommandContext): Command {
   };
 }
 
+function supportCommand(context: CommandContext): Command {
+  return {
+    name: "support",
+    arguments: ["<тикет>", "<вопрос...>"],
+    missingArgument: "Не указаны тикет и вопрос клиента.",
+    description: descriptions.support ?? "",
+    run: async ([ticketId = "", ...words]) => {
+      const question = words.join(" ").trim();
+      if (!question) throw new InputError("Не указан вопрос клиента.");
+      context.view.support(await context.support(ticketId, question), context.modelLabel());
+      return "continue";
+    },
+  };
+}
+
 export function createCommands(context: CommandContext): readonly Command[] {
   const commands: Command[] = [
     askCommand(context),
@@ -68,6 +84,7 @@ export function createCommands(context: CommandContext): readonly Command[] {
         return "continue";
       },
     },
+    supportCommand(context),
     {
       name: "help",
       arguments: [],
