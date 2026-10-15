@@ -8,7 +8,7 @@
 чанкинг по структуре Markdown, эмбеддинги Ollama, ответ с источниками, цитатами и «не знаю» (`rag index`, `rag ask`);
 git MCP-сервер с читающими инструментами (`servers/git`); `ask` и ассистент проекта `info <вопрос>` — RAG по
 документации плюс git-инструменты, которые модель вызывает сама (ADR 0002); AI-ревью PR `review <база>` и workflow
-`.github/workflows/ai-review.yml` с комментарием в PR (ADR 0003).
+`.github/workflows/ai-review.yml` с комментарием в PR (ADR 0003); ассистент поддержки `support` (ADR 0004).
 Задания выдаются по одному; docs/course.md — ориентир недели, он не разрешает реализовывать будущие задания заранее.
 Перед заданием сформулируй учебную цель и минимальный результат; улучшения отдели явно.
 
@@ -18,11 +18,14 @@ git MCP-сервер с читающими инструментами (`servers/
 | apps/host/src/core | Agent с циклом инструментов, ModelPort, ToolSource, типизированные ошибки |
 | apps/host/src/adapters/llm | DeepSeek и локальный OpenAI-совместимый сервер через SDK `openai` |
 | apps/host/src/adapters/cli | Ввод, dispatch, REPL, отображение результатов и ошибок |
-| apps/host/src/app | Единственная композиция host, реестры, Markdown-инструкции, MCP-сессии `ask`, `info` и `review` |
+| apps/host/src/app | Единственная композиция host, реестры, Markdown-инструкции, MCP-сессии `ask`, `info`, `review`, `support` |
 | apps/host/src/features/rag | Корпус проекта, чанкинг, эмбеддинги Ollama, индекс, поиск, rewrite, отбор, ответ с цитатами и инструментами |
 | apps/host/src/features/mcp | stdio-клиент MCP: `withStdioToolSource` → ToolSource |
 | apps/host/src/features/review | Сообщение, промпт, проверка разделов и Markdown AI-ревью |
+| apps/host/src/features/support | Сообщение, промпт, проверка разделов и источников, Markdown ответа клиенту по тикету |
 | servers/git | MCP-сервер: ветка, статус, diff (и от базы), изменённые и отслеживаемые файлы, файл HEAD; только чтение |
+| servers/support | MCP-сервер: `get_ticket` — тикет, клиент и переписка из JSON `--data`; только чтение |
+| examples/support-product | Демо-продукт для `support`: документация (корпус), `support/tickets.json`, конфиг запуска |
 | .github/workflows | CI (`npm run check`) и AI-ревью PR: Ollama в раннере, `rag index`, `review`, комментарий |
 | docs/adr, docs/demos | Решения и короткие ручные демонстрации |
 | tooling | Архитектурные проверки, генерация документации, сборка |
@@ -54,6 +57,7 @@ ToolExecutor, хранилища) — только через ADR с конкр�
 - Лимит вызовов: `ASK_MAX_TOOL_CALLS` (6) в `ask`, `INFO_MAX_TOOL_CALLS` (4) в `info`; исполняет Agent.
 - Ревью PR: `review <база>` — git-инструменты вызывает host, документация из RAG, один вызов модели без инструментов;
   разделы «Потенциальные баги», «Архитектурные проблемы», «Рекомендации».
+- Ассистент поддержки: `support <тикет> <вопрос...>` — тикет (`get_ticket`) и RAG готовит host; модель без инструментов.
 - Провайдер модели (`llm.provider`): `deepseek` или `local`; эмбеддинги от него не зависят.
 - Agent: обрабатывает реплику через ModelPort, состояния не хранит. Command — команда CLI/REPL; tool — действие модели.
 
@@ -106,7 +110,7 @@ dependency-cruiser проверяет границы, циклы и import type,
 Node 24; npm ci; npm run hooks:install; npm run dev; npm run dev -- help; npm run dev -- config show.
 npm run dev -- rag index; npm run dev -- rag ask "вопрос"; npm run dev -- info "вопрос"; в REPL — /info вопрос.
 npm run dev -- review main; npm run dev -- --review-output-file .local/review.md review origin/main.
-npm run dev -- --project-root ../rag-lab rag index.
+npm run dev -- --project-root ../rag-lab rag index; команды `support` — docs/demos/support-assistant.md.
 npm run lint; npm run typecheck; npm test; npm run test:coverage; npm run build.
 npm run check; npm run check:deps; npm run check:structure; npm run docs:generate.
 

@@ -2,12 +2,12 @@ import { randomUUID } from "node:crypto";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { InputError } from "../adapters/cli/index.ts";
-import type { JsonObject, ToolSource } from "../core/index.ts";
+import type { ToolSource } from "../core/index.ts";
 import { type SearchHit, searchQueries } from "../features/rag/index.ts";
 import { type ReviewDoc, type ReviewFile, renderReview, reviewChanges } from "../features/review/index.ts";
 import { type McpServers, systemPrompt } from "./ask.ts";
 import { prepareRag, type RagAnswerHandlerOptions } from "./ragAnswer.ts";
-import { combineToolSources, type WithToolSource, withSessions } from "./toolSources.ts";
+import { callText, combineToolSources, type WithToolSource, withSessions } from "./toolSources.ts";
 
 /** Лимиты контекста ревью: число файлов и кодовые точки diff и содержимого всех файлов вместе. */
 export const MAX_REVIEW_FILES = 20;
@@ -44,13 +44,6 @@ export function parseChangedFiles(text: string): ChangedFile[] {
       const [path = "", from] = match[2].split(" ← ");
       return from === undefined ? { status: match[1], path } : { status: match[1], path, from };
     });
-}
-
-/** Текст результата инструмента; `isError` — InputError с текстом сервера: причина git или схемы, без stderr git. */
-async function callText(source: ToolSource, name: string, args: JsonObject): Promise<string> {
-  const result = await source.callTool({ name, arguments: args });
-  if (result.isError) throw new InputError(result.content);
-  return result.content;
 }
 
 /**

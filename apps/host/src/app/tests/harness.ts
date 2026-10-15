@@ -22,6 +22,7 @@ export type InvokeOptions = Readonly<{
   env?: Readonly<Record<string, string>>;
   mcpServers?: McpServers;
   withToolSource?: WithToolSource;
+  nodeExecutable?: string;
 }>;
 
 const echo = (request: ModelRequest): Promise<ModelCompletion> =>
@@ -52,7 +53,7 @@ export async function invoke(argv: string[], options: InvokeOptions) {
     env: { ...(options.authenticated === false ? {} : { LAB_LLM_API_KEY: "test-key" }), ...options.env },
     createModel,
     createEmbeddings,
-    nodeExecutable: "node",
+    nodeExecutable: options.nodeExecutable ?? "node",
     mcpServers: options.mcpServers ?? (() => []),
     ...(options.withToolSource ? { withToolSource: options.withToolSource } : {}),
     terminal: {

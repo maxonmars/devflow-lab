@@ -145,6 +145,17 @@ describe("конфигурация", () => {
     expect(() => resolveConfig({ "mcp.timeoutMs": "fast" }, {}, root)).toThrow(/mcp.timeoutMs/);
   });
 
+  it("support.dataFile: по умолчанию support/tickets.json, путь вне project.root отклоняется", () => {
+    expect(resolveConfig({}, {}, root).values["support.dataFile"]).toBe("support/tickets.json");
+    expect(parseOptions(["--support-data-file", "data/t.json"]).flags).toEqual({ "support.dataFile": "data/t.json" });
+    expect(resolveConfig({}, { LAB_SUPPORT_DATA_FILE: "t.json" }, root).values["support.dataFile"]).toBe("t.json");
+    for (const value of ["/etc/tickets.json", "../tickets.json", "data/../../t.json", " "]) {
+      expect(() => resolveConfig({ "support.dataFile": value }, {}, root)).toThrow(
+        /support\.dataFile \(источник: cli\)/,
+      );
+    }
+  });
+
   it("rag.answerPrompt: по умолчанию default, флаг и значение compact принимаются", () => {
     expect(resolveConfig({}, {}, root).values["rag.answerPrompt"]).toBe("default");
     expect(parseOptions(["--rag-answer-prompt=compact"]).flags).toEqual({ "rag.answerPrompt": "compact" });

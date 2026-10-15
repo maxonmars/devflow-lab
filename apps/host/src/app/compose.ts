@@ -10,7 +10,8 @@ import { type CreateModel, type ModelOptions, modelLabel } from "./model.ts";
 import { createRagHandlers } from "./rag.ts";
 import { createRagAnswerHandlers } from "./ragAnswer.ts";
 import { createReviewHandler } from "./review.ts";
-import { gitServer } from "./serverEntrypoints.ts";
+import { gitServer, supportServer } from "./serverEntrypoints.ts";
+import { createSupportHandler } from "./support.ts";
 import type { WithToolSource } from "./toolSources.ts";
 
 export type RunOptions = Readonly<{
@@ -51,6 +52,15 @@ export async function run(options: RunOptions): Promise<number> {
     ragAsk: ragAnswer.ask,
     projectInfo: createProjectInfoHandler(projectOptions),
     review: createReviewHandler(projectOptions),
+    support: createSupportHandler({
+      cwd,
+      getConfig,
+      createModel,
+      createEmbeddings,
+      view,
+      withToolSource,
+      server: (current) => supportServer(current, cwd, options.nodeExecutable),
+    }),
     view,
   });
   let command: string[];

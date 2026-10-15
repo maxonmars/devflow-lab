@@ -1,0 +1,99 @@
+{
+  "users": [
+    {
+      "id": "u-001",
+      "name": "Анна Смирнова",
+      "email": "anna.smirnova@example.com",
+      "plan": "pro",
+      "accountStatus": "locked",
+      "authMethod": "password",
+      "twoFactor": false
+    },
+    {
+      "id": "u-002",
+      "name": "Борис Ким",
+      "email": "boris.kim@example.com",
+      "plan": "business",
+      "accountStatus": "active",
+      "authMethod": "sso",
+      "twoFactor": true
+    },
+    {
+      "id": "u-003",
+      "name": "Вера Орлова",
+      "email": "vera.orlova@example.com",
+      "plan": "pro",
+      "accountStatus": "active",
+      "authMethod": "password",
+      "twoFactor": true
+    }
+  ],
+  "tickets": [
+    {
+      "id": "T-1001",
+      "userId": "u-001",
+      "subject": "Не могу войти",
+      "status": "open",
+      "createdAt": "2026-10-12T09:14:00Z",
+      "messages": [
+        {
+          "from": "user",
+          "at": "2026-10-12T09:14:00Z",
+          "text": "Несколько раз ввела пароль, теперь при входе пишет «Аккаунт временно заблокирован». Что делать?"
+        }
+      ]
+    },
+    {
+      "id": "T-1002",
+      "userId": "u-002",
+      "subject": "Не работает авторизация",
+      "status": "open",
+      "createdAt": "2026-10-13T11:02:00Z",
+      "messages": [
+        {
+          "from": "user",
+          "at": "2026-10-13T11:02:00Z",
+          "text": "Ввожу email и пароль, пишет «Неверный email или пароль». Пароль точно правильный, вчера всё работало."
+        }
+      ]
+    },
+    {
+      "id": "T-1003",
+      "userId": "u-003",
+      "subject": "Потеряла телефон",
+      "status": "pending",
+      "createdAt": "2026-10-10T16:40:00Z",
+      "messages": [
+        {
+          "from": "user",
+          "at": "2026-10-10T16:40:00Z",
+          "text": "Потеряла телефон, на нём было приложение-аутентификатор. Резервные коды не сохранила. Не могу войти."
+        },
+        {
+          "from": "support",
+          "at": "2026-10-11T08:05:00Z",
+          "text": "Чтобы отключить 2FA, подтвердите, пожалуйста, личность: ответьте с email аккаунта и укажите дату регистрации."
+        }
+      ]
+    },
+    {
+      "id": "T-1004",
+      "userId": "u-003",
+      "subject": "SSO для команды",
+      "status": "closed",
+      "createdAt": "2026-10-01T10:00:00Z",
+      "messages": [
+        {
+          "from": "user",
+          "at": "2026-10-01T10:00:00Z",
+          "text": "Хотим входить всей командой через SSO. Это можно включить на нашем тарифе?"
+        },
+        {
+          "from": "support",
+          "at": "2026-10-01T12:30:00Z",
+          "text": "SSO доступен на тарифе Business, на Pro его нет. Повысить тариф можно в «Настройки → Тариф»."
+        }
+      ]
+    }
+  ]
+}

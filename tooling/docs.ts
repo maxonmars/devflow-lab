@@ -11,6 +11,7 @@ const silentView = {
   ragAnswer: () => {},
   infoAnswer: () => {},
   review: () => {},
+  support: () => {},
 };
 
 /** Реестр с заглушками обработчиков: нужны только имена, аргументы и описания команд. */
@@ -23,6 +24,7 @@ function stubRegistry() {
     ragAsk: async () => ({ answer: "", fragments: [] }),
     projectInfo: async () => ({ answer: "", fragments: [] }),
     review: async () => "",
+    support: async () => "",
     view: silentView,
   });
 }
