@@ -55,7 +55,7 @@ async function collectFiles(source: ToolSource, base: string, changed: readonly 
   const omitted: string[] = [];
   let budget = MAX_REVIEW_CONTEXT_CHARS;
   for (const [position, file] of changed.entries()) {
-    if (position >= MAX_REVIEW_FILES) {
+    if (position > MAX_REVIEW_FILES) {
       omitted.push(file.path);
       continue;
     }

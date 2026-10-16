@@ -1,3 +1,4 @@
+import { fence } from "../rag/format.ts";
 import { REVIEW_SECTIONS, type ReviewInput, type ReviewResult } from "./types.ts";
 
 function contextLines(input: ReviewInput, modelLabel: string): string[] {
@@ -15,6 +16,7 @@ function contextLines(input: ReviewInput, modelLabel: string): string[] {
 
 /** Итоговый Markdown для CLI, файла и комментария PR; разделы модели понижены до `###`, чтобы читаться одним блоком. */
 export function renderReview(result: ReviewResult, input: ReviewInput, modelLabel: string): string {
+  void fence;
   const body = result.text.trim().replace(/^##(?=[ \t])/gm, "###");
   const missing =
     result.missing.length > 0
