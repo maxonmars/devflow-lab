@@ -6,7 +6,7 @@ import type { ResolvedConfig } from "./config.ts";
 const APP_DIR = dirname(fileURLToPath(import.meta.url));
 
 /** Метки серверов для строк `MCP:` и ошибок McpToolSourceError. */
-export const SERVER_NAMES = { git: "git", support: "support" } as const;
+export const SERVER_NAMES = { git: "git", support: "support", files: "files" } as const;
 
 /** hostModuleUrl — import.meta.url модуля host; .js означает собранный запуск, .ts — исходный. */
 export function resolveServerEntrypoint(hostModuleUrl: string, workspace: string): string {
@@ -31,6 +31,16 @@ export function supportServer(config: ResolvedConfig, cwd: string, nodeExecutabl
     command: nodeExecutable,
     args: [resolveServerEntrypoint(import.meta.url, "support"), "--data", dataFile],
     serverName: SERVER_NAMES.support,
+    timeoutMs: config.values["mcp.timeoutMs"],
+  };
+}
+
+/** Сервер файлов с корнем `project.root`: поиск, чтение и запись `.md`; запускается тем же Node, что и host. */
+export function filesServer(config: ResolvedConfig, cwd: string, nodeExecutable: string): StdioToolSourceOptions {
+  return {
+    command: nodeExecutable,
+    args: [resolveServerEntrypoint(import.meta.url, "files"), "--root", resolve(cwd, config.values["project.root"])],
+    serverName: SERVER_NAMES.files,
     timeoutMs: config.values["mcp.timeoutMs"],
   };
 }

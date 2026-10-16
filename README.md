@@ -7,7 +7,8 @@
 документации (RAG) и сам смотрит в git через MCP-сервер ([ADR 0002](docs/adr/0002-project-info.md)), — и AI-ревью PR
 `review <база>`, которое GitHub Actions публикует комментарием в PR ([ADR 0003](docs/adr/0003-ai-review.md)), и
 ассистент поддержки `support <тикет> <вопрос...>`: ответ клиенту по документации продукта и данным тикета
-([ADR 0004](docs/adr/0004-support-assistant.md)).
+([ADR 0004](docs/adr/0004-support-assistant.md)), — и ассистент файлов `files <цель...>`: поиск по файлам, чтение
+рабочей копии и правки Markdown с подтверждением человека ([ADR 0005](docs/adr/0005-files-assistant.md)).
 
 ## Запуск
 
@@ -21,7 +22,7 @@ npm run dev -- info "Какая сейчас ветка и что в ней из
 ```
 
 Ollama должна быть запущена (`ollama serve`) — [docs/ollama.md](docs/ollama.md). Ключ DeepSeek нужен для `ask`,
-`rag ask`, `info <вопрос>`, `review <база>` и `support` при `llm.provider: deepseek`: `LAB_LLM_API_KEY` в корневом `.env` или окружении процесса. С
+`rag ask`, `info <вопрос>`, `review <база>`, `support` и `files` при `llm.provider: deepseek`: `LAB_LLM_API_KEY` в корневом `.env` или окружении процесса. С
 `--llm-provider local` те же команды идут в локальный OpenAI-совместимый сервер без ключа. Индекс лежит в
 `.local/rag/index.json` (каталог `.local/` не попадает в git).
 
@@ -78,6 +79,21 @@ npm run dev -- --config-file examples/support-product/support.config.yaml suppor
 
 Команды запускаются из корня репозитория; полный сценарий — [демо](docs/demos/support-assistant.md).
 
+## Ассистент для работы с файлами
+
+`files <цель...>` — модель сама выбирает инструменты: [files-сервер](servers/files/README.md) ищет по файлам и читает
+рабочую копию, git-сервер показывает изменения, локальный `propose_edit` предлагает правки Markdown. Host печатает
+предложенные правки как unified diff и спрашивает `[y/N]`; файл меняется только после «y», только `.md` и только если
+не изменился с момента предложения. Без терминала печатается один diff. Индекс и Ollama не нужны.
+
+```sh
+npm run dev -- files "Найди все места, где используется withSessions, и кратко объясни роль каждого"
+git apply examples/files-demo/change.patch
+npm run dev -- files "Обнови examples/files-demo/README.md под незакоммиченные изменения кода в examples/files-demo"
+```
+
+Команды запускаются из корня репозитория; полный сценарий — [демо](docs/demos/files-assistant.md).
+
 ## RAG по документации проекта
 
 `rag index` собирает корпус из Markdown-файлов `rag.include` внутри `project.root`: по умолчанию это сам репозиторий —
@@ -99,7 +115,8 @@ npm run dev -- --project-root ../rag-lab rag ask "Как устроен шлюз
 `review <база>` открывает ту же сессию и вызывает git-инструменты сам. Это сервер [git](servers/git/README.md) с корнем
 `project.root`; его инструменты только читают, не выходят за корень и не видят игнорируемых файлов вроде `.env`
 ([правила серверов](servers/README.md)). `support` открывает только сервер [support](servers/support/README.md): он
-читает один JSON-файл тикетов.
+читает один JSON-файл тикетов. `files` открывает серверы [files](servers/files/README.md) и git: files — единственный
+сервер с записью (только существующий `.md` и только после подтверждения человека, ADR 0005).
 
 Настройки — YAML-файл, env (`LAB_…`) и флаги; приоритет и список — [docs/configuration.md](docs/configuration.md),
 команды — [docs/commands.md](docs/commands.md). Пример файла — [lab.config.example.yaml](lab.config.example.yaml).
@@ -113,8 +130,11 @@ npm run dev -- --project-root ../rag-lab rag ask "Как устроен шлюз
 - [Фича review](apps/host/src/features/review/README.md) — сообщение, промпт и итоговый Markdown ревью.
 - [Фича support](apps/host/src/features/support/README.md) и [support MCP server](servers/support/README.md) —
   ответ клиенту по тикету.
+- [Фича files](apps/host/src/features/files/README.md) и [files MCP server](servers/files/README.md) —
+  ассистент файлов и правки с подтверждением.
 - Демо: [RAG по самому репозиторию](docs/demos/project-rag.md), [ассистент проекта](docs/demos/project-info.md),
-  [AI-ревью PR](docs/demos/ai-review.md), [ассистент поддержки](docs/demos/support-assistant.md).
+  [AI-ревью PR](docs/demos/ai-review.md), [ассистент поддержки](docs/demos/support-assistant.md),
+  [ассистент файлов](docs/demos/files-assistant.md).
 
 ## Проверки
 

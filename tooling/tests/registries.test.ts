@@ -27,6 +27,8 @@ it("команды имеют уникальные имена и алиасы, �
     projectInfo: async () => ({ answer: "", fragments: [] }),
     review: async () => "",
     support: async () => "",
+    files: { plan: async () => ({ markdown: "", changes: [] }), apply: async () => [] },
+    confirm: async () => "unavailable",
     view: {
       answer: () => {},
       help: () => {},
@@ -36,6 +38,9 @@ it("команды имеют уникальные имена и алиасы, �
       infoAnswer: () => {},
       review: () => {},
       support: () => {},
+      filesResult: () => {},
+      filesApplied: () => {},
+      filesNotApplied: () => {},
     },
   });
   const names = commands.flatMap((command) => [command.name, ...(command.aliases ?? [])]);

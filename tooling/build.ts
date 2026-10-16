@@ -9,6 +9,7 @@ import { files, localPath, workspacePaths } from "./files.ts";
 const TOOL_LIST_SMOKE_TIMEOUT_MS = 5_000;
 const GIT_TOOLS = ["git_branch", "git_changed_files", "git_diff", "git_status", "list_files", "read_file"];
 const SUPPORT_TOOLS = ["get_ticket"];
+const FILES_TOOLS = ["files_read", "files_search", "files_write"];
 
 /** Собранный сервер из другого каталога: сверяет отсортированный listTools с ожидаемым набором инструментов. */
 async function toolListSmoke(cwd: string, args: readonly string[], expectedTools: readonly string[]): Promise<void> {
@@ -48,7 +49,7 @@ try {
     env: {},
     stdio: "pipe",
   });
-  for (const name of ["info", "support", "review", "rag index", "rag ask", "config show"]) {
+  for (const name of ["info", "support", "files", "review", "rag index", "rag ask", "config show"]) {
     if (!help.includes(name)) throw new Error(`В собранной справке отсутствует ${name}.`);
   }
   execFileSync(process.execPath, [main, "config", "show"], { cwd: temporary, env: {}, stdio: "pipe" });
@@ -62,6 +63,8 @@ try {
     SUPPORT_TOOLS,
   );
   console.log("Запуск собранного support MCP server из другого каталога: OK.");
+  await toolListSmoke(temporary, [join(root, "servers/files/dist/app/main.js"), "--root", root], FILES_TOOLS);
+  console.log("Запуск собранного files MCP server из другого каталога: OK.");
 } finally {
   rmSync(temporary, { recursive: true, force: true });
 }

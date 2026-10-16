@@ -1,4 +1,5 @@
 import { type Command, type CommandView, type ConfigRow, InputError } from "../adapters/cli/index.ts";
+import type { FilesHandler } from "./files.ts";
 import { sections } from "./markdown.ts";
 import type { RagOutcome } from "./rag.ts";
 import type { RagReply } from "./ragAnswer.ts";
@@ -15,6 +16,9 @@ type CommandContext = {
   projectInfo: (text: string) => Promise<RagReply>;
   review: (base: string) => Promise<string>;
   support: (ticketId: string, question: string) => Promise<string>;
+  files: FilesHandler;
+  /** `unavailable` — подтверждение невозможно (REPL или нет терминала): изменения не применяются. */
+  confirm: (question: string) => Promise<"yes" | "no" | "unavailable">;
   view: CommandView;
 };
 
@@ -70,6 +74,24 @@ function supportCommand(context: CommandContext): Command {
   };
 }
 
+function filesCommand(context: CommandContext): Command {
+  return {
+    name: "files",
+    arguments: ["<цель...>"],
+    missingArgument: "Не указана цель для работы с файлами.",
+    description: descriptions.files ?? "",
+    run: async (args) => {
+      const { markdown, changes } = await context.files.plan(args.join(" "));
+      context.view.filesResult(markdown, context.modelLabel());
+      if (changes.length === 0) return "continue";
+      const answer = await context.confirm(`Применить изменения (файлов: ${changes.length})?`);
+      if (answer === "yes") context.view.filesApplied(await context.files.apply(changes));
+      else context.view.filesNotApplied(answer === "no" ? "declined" : "unavailable");
+      return "continue";
+    },
+  };
+}
+
 export function createCommands(context: CommandContext): readonly Command[] {
   const commands: Command[] = [
     askCommand(context),
@@ -85,6 +107,7 @@ export function createCommands(context: CommandContext): readonly Command[] {
       },
     },
     supportCommand(context),
+    filesCommand(context),
     {
       name: "help",
       arguments: [],

@@ -103,7 +103,7 @@ describe("CLI и REPL", () => {
     expect(result.output.match(/── devflow-lab ──/g)).toHaveLength(1);
     expect(result.output.match(/Модель: deepseek · deepseek-flash/g)).toHaveLength(1);
     expect(result.output).toContain(
-      "/ask · /info · /support · /help · /config show · /rag index · /rag ask · /review · /exit",
+      "/ask · /info · /support · /files · /help · /config show · /rag index · /rag ask · /review · /exit",
     );
     expect(result.output.match(/devflow-lab > /g)).toHaveLength(2);
   });

@@ -6,9 +6,21 @@ import { wrapText } from "./text.ts";
 
 export type HelpSetting = Readonly<{ flag: string; type: string; description: string }>;
 export type ConfigRow = Readonly<{ key: string; value: string; source: string }>;
+/** Итог записи одного файла после подтверждения: `detail` — причина пропуска или текст ошибки. */
+export type FileOutcome = Readonly<{ path: string; status: "written" | "skipped" | "failed"; detail?: string }>;
 export type CommandView = Pick<
   CliView,
-  "answer" | "help" | "config" | "indexBuilt" | "ragAnswer" | "infoAnswer" | "review" | "support"
+  | "answer"
+  | "help"
+  | "config"
+  | "indexBuilt"
+  | "ragAnswer"
+  | "infoAnswer"
+  | "review"
+  | "support"
+  | "filesResult"
+  | "filesApplied"
+  | "filesNotApplied"
 >;
 
 const fallbackWidth = 88;
@@ -51,6 +63,38 @@ export class CliView {
   /** Markdown ответа поддержки печатается как есть: его готовит фича support. */
   support(markdown: string, model: string): void {
     this.#block(`Ответ поддержки · ${model}`, [markdown]);
+  }
+
+  /** Markdown ответа ассистента файлов с diff печатается как есть: его готовит фича files. */
+  filesResult(markdown: string, model: string): void {
+    this.#block(`Ассистент файлов · ${model}`, [markdown]);
+  }
+
+  /** Одна служебная строка на каждый вызов `propose_edit`, как `mcpToolStatus`. */
+  editProposal(path: string, accepted: boolean): void {
+    const outcome = accepted ? "принята" : "отклонена";
+    this.#output.write(`${this.#paint("muted", `Правка: ${path} — ${outcome}`)}\n`);
+  }
+
+  /** Вопрос без перевода строки: ответ вводится в той же строке. */
+  confirmPrompt(question: string): void {
+    this.#output.write(`\n${this.#paint("key", question)} [y/N] `);
+  }
+
+  filesNotApplied(reason: "declined" | "unavailable"): void {
+    const text =
+      reason === "declined"
+        ? "Изменения не применены."
+        : "Изменения не применены: подтверждение возможно только в интерактивном терминале.";
+    this.#block("Запись файлов", [text]);
+  }
+
+  filesApplied(outcomes: readonly FileOutcome[]): void {
+    const labels = { written: "Записано", skipped: "Пропущено", failed: "Ошибка" } as const;
+    this.#block(
+      "Запись файлов",
+      outcomes.map((item) => `${labels[item.status]}: ${item.path}${item.detail ? ` — ${item.detail}` : ""}`),
+    );
   }
 
   help(commands: readonly Command[], settings: readonly HelpSetting[]): void {

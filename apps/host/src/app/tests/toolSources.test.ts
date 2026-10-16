@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ToolSource } from "../../core/index.ts";
-import { combineToolSources, observedToolSource } from "../toolSources.ts";
+import { combineToolSources, observedToolSource, withoutTools } from "../toolSources.ts";
 
 function source(names: string[], answer: string): ToolSource & { callTool: ReturnType<typeof vi.fn> } {
   return {
@@ -56,5 +56,27 @@ describe("observedToolSource", () => {
     inner.callTool.mockRejectedValueOnce(new Error("сбой"));
     await expect(observed.callTool({ name: "git_branch", arguments: {} })).rejects.toThrow("сбой");
     expect(statuses).toEqual(["git:git_branch:true", "git:git_branch:false", "git:git_branch:false"]);
+  });
+});
+
+describe("withoutTools", () => {
+  it("скрывает указанные инструменты из списка, остальные вызываются как раньше", async () => {
+    const inner = source(["read_file", "list_files"], "ok");
+    const visible = withoutTools(inner, ["read_file"]);
+    expect((await visible.listTools()).map((tool) => tool.name)).toEqual(["list_files"]);
+    await visible.callTool({ name: "list_files", arguments: {} });
+    expect(inner.callTool).toHaveBeenCalledWith({ name: "list_files", arguments: {} });
+  });
+
+  it("вызов скрытого инструмента не доходит до источника", () => {
+    const inner = source(["read_file"], "ok");
+    expect(() => withoutTools(inner, ["read_file"]).callTool({ name: "read_file", arguments: {} })).toThrow("скрыт");
+    expect(inner.callTool).not.toHaveBeenCalled();
+  });
+
+  it("исходный источник список не теряет", async () => {
+    const inner = source(["read_file"], "ok");
+    withoutTools(inner, ["read_file"]);
+    expect(await inner.listTools()).toHaveLength(1);
   });
 });

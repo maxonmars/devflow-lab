@@ -2,10 +2,10 @@
 
 ## Текущее приложение
 
-Исполняемый workspace `apps/host` и MCP-серверы `servers/git` и `servers/support` — отдельные workspace и процессы.
+Исполняемый workspace `apps/host` и MCP-серверы `servers/git`, `servers/support` и `servers/files` — отдельные workspace и процессы.
 Общих библиотек нет. `app/main.ts` принимает окружение, argv и потоки; `app/compose.ts` собирает приложение. Модель
 (DeepSeek или локальная по `llm.provider`) создаётся лениво при первом `ask`, `rag ask`, `info <вопрос>`,
-`review <база>` или `support <тикет> <вопрос...>`, поэтому справка, настройки и `rag index` работают без ключа.
+`review <база>`, `support <тикет> <вопрос...>` или `files <цель...>`, поэтому справка, настройки и `rag index` работают без ключа.
 
 ```mermaid
 flowchart LR
@@ -16,6 +16,7 @@ flowchart LR
     App --> Mcp[features/mcp]
     App --> Review[features/review]
     App --> Support[features/support]
+    App --> Files[features/files]
     CLI --> Core
     LLM --> Core
     LLM --> DeepSeek[DeepSeek API]
@@ -27,10 +28,13 @@ flowchart LR
     Mcp --> Core
     Review --> Core
     Support --> Core
+    Files --> Core
     Mcp -->|stdio, процесс на реплику| Git[servers/git]
     Git -->|execFile git, только чтение| Repo[(git-репозиторий project.root)]
     Mcp -->|stdio, процесс на команду support| SupportServer[servers/support]
     SupportServer -->|чтение одного файла| Tickets[(JSON support.dataFile)]
+    Mcp -->|stdio, процесс на фазу команды files| FilesServer[servers/files]
+    FilesServer -->|git ls-files, чтение и запись .md| Visible[(видимые файлы project.root)]
 ```
 
 CLI получает реестр обработчиков и потоки, не создаёт агента и не знает SDK. Вывод оформляет один CliView: обработчики
@@ -100,14 +104,34 @@ Workflow `.github/workflows/ai-review.yml` на событие `pull_request` з
 
 Демо-продукт с документацией, тикетами и конфигом — `examples/support-product/`, индекс — `.local/rag-support`.
 
+## files и правки с подтверждением
+
+`files <цель...>` (app/files.ts, ADR 0005) — единственная команда с записью. Модель только предлагает правки, файлы
+меняет host после ответа человека; фазы — отдельные вызовы, модель на этапе подтверждения не работает.
+
+1. Фаза plan. Модель создаётся до серверов, затем открываются сессии files-сервера и серверов из
+   `RunOptions.mcpServers` (git). `Agent` с `prompts/files.md` и лимитом `FILES_MAX_TOOL_CALLS` (15) получает
+   `files_search`, `files_read`, инструменты git-сервера кроме `read_file` (HEAD путал бы с рабочей копией) и локальный
+   `propose_edit`; `files_write` скрыт `withoutTools`. `propose_edit` (features/files) проверяет, что `old` встречается
+   в файле ровно один раз, и копит правки в памяти; ошибка возвращается модели результатом `isError`.
+2. Печать. `renderFilesResult` добавляет к ответу unified diff по каждому файлу (библиотека `diff`).
+3. Подтверждение. `[y/N]` задаётся только при TTY, одной командой и в REPL; ответ читает тот же readline, что и строки
+   REPL (`createLineReader`); согласие — «y», «yes», «д», «да». Иначе печатается diff и причина, по которой изменения не применены.
+4. Фаза apply. После согласия открывается новая сессия files-сервера; каждый файл перечитывается, и `files_write`
+   вызывается, только если содержимое совпало с `before`. Ошибка одного файла не прерывает остальные.
+
+Сервер files видит файлы по `git ls-files --cached --others --exclude-standard`: `.env` и `.local/` недоступны.
+`files_write` заменяет только существующий видимый обычный `.md` (не symlink, `realpath` внутри корня) через временный
+файл и `rename` — README сервера. Демо-фикстура — `examples/files-demo/`.
+
 ## Песочница
 
 Инструменты по умолчанию только читают. Правило держится на двух уровнях: сервер регистрирует только
 читающие инструменты и не выходит за корень проекта из аргумента запуска; host не передаёт серверу ключи. Git-сервер
 дополнительно выключает механизмы git, которые запускают команды из конфига репозитория (fsmonitor, внешний diff,
-textconv), и показывает только отслеживаемые файлы; `read_file` читает только HEAD — README сервера. Подтверждение
-человека для опасной операции пока не реализовано: когда задание потребует такой инструмент, ADR определит место
-проверки (app, до `callTool`) и вид подтверждения в CLI.
+textconv), и показывает только отслеживаемые файлы; `read_file` читает только HEAD — README сервера. Единственная
+запись — `files_write` (ADR 0005): её вызывает не модель, а host в app после явного «y» человека в терминале, до
+`callTool`; сервер дополнительно ограничивает запись существующими видимыми `.md`.
 
 ## Фича rag
 
