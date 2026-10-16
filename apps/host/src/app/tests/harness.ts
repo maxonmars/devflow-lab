@@ -12,7 +12,10 @@ export type CompleteMock = ReturnType<typeof vi.fn<(request: ModelRequest) => Pr
 
 export type InvokeOptions = Readonly<{
   cwd: string;
-  input?: string;
+  /** Поток задаёт ввод, который тест дописывает по ходу команды. */
+  input?: string | Readable;
+  /** Вызывается с накопленным stdout после каждой записи. */
+  onOutput?: (text: string) => void;
   authenticated?: boolean;
   color?: boolean;
   interactive?: boolean;
@@ -28,10 +31,11 @@ export type InvokeOptions = Readonly<{
 const echo = (request: ModelRequest): Promise<ModelCompletion> =>
   Promise.resolve({ type: "text", content: `Ответ: ${request.messages.at(-1)?.content}` });
 
-function capture(color: boolean, sink: { text: string }): Writable {
+function capture(color: boolean, sink: { text: string }, onWrite?: (text: string) => void): Writable {
   const stream = new Writable({
     write(chunk, _encoding, done) {
       sink.text += chunk.toString();
+      onWrite?.(sink.text);
       done();
     },
   });
@@ -57,9 +61,9 @@ export async function invoke(argv: string[], options: InvokeOptions) {
     mcpServers: options.mcpServers ?? (() => []),
     ...(options.withToolSource ? { withToolSource: options.withToolSource } : {}),
     terminal: {
-      input: Readable.from([options.input ?? ""]),
+      input: options.input instanceof Readable ? options.input : Readable.from([options.input ?? ""]),
       interactive: options.interactive ?? false,
-      output: capture(options.color ?? false, output),
+      output: capture(options.color ?? false, output, options.onOutput),
       error: capture(options.color ?? false, error),
     },
   });

@@ -4,7 +4,7 @@ import {
   type FileOutcome,
   InputError,
   isYes,
-  readAnswer,
+  type LineReader,
   type Terminal,
 } from "../adapters/cli/index.ts";
 import { Agent, type ToolSource } from "../core/index.ts";
@@ -95,15 +95,15 @@ export function createFilesHandler(options: FilesHandlerOptions): FilesHandler {
   };
 }
 
-/** Вопрос `[y/N]` только когда `files` запущена одной командой в терминале: в REPL stdin занят readline. */
+/** Вопрос `[y/N]` только в терминале; ответ читает тот же readline, что и строки REPL. */
 export function createConfirm(
-  terminal: Terminal,
+  terminal: Pick<Terminal, "interactive">,
   view: Pick<CliView, "confirmPrompt">,
-  repl: () => boolean,
+  reader: Pick<LineReader, "question">,
 ): (question: string) => Promise<"yes" | "no" | "unavailable"> {
   return async (question) => {
-    if (repl() || !terminal.interactive) return "unavailable";
+    if (!terminal.interactive) return "unavailable";
     view.confirmPrompt(question);
-    return isYes(await readAnswer(terminal.input)) ? "yes" : "no";
+    return isYes(await reader.question()) ? "yes" : "no";
   };
 }

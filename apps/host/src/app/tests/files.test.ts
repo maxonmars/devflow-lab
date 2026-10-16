@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ModelCompletion, ModelRequest, ToolCall, ToolResult, ToolSource } from "../../core/index.ts";
 import type { StdioToolSourceOptions } from "../../features/mcp/index.ts";
@@ -91,6 +92,26 @@ function run(argv: string[], fake: ReturnType<typeof fakeSessions>, complete = s
   });
 }
 
+/** REPL, в котором `answer` вводится только после вопроса `[y/N]`, как в терминале. */
+function runRepl(fake: ReturnType<typeof fakeSessions>, complete: ReturnType<typeof script>, answer: string) {
+  const input = new PassThrough();
+  let answered = false;
+  input.write(`/files ${GOAL}\n`);
+  return invoke([], {
+    cwd,
+    complete,
+    input,
+    interactive: true,
+    mcpServers: () => [gitServer],
+    withToolSource: fake.withToolSource,
+    onOutput: (text) => {
+      if (answered || !text.endsWith("[y/N] ")) return;
+      answered = true;
+      setImmediate(() => input.end(answer));
+    },
+  });
+}
+
 describe("files: поиск без правок", () => {
   it("модель вызывает files_search и отвечает текстом; вопроса и записи нет", async () => {
     const fake = fakeSessions();
@@ -150,16 +171,7 @@ describe("files: правки и подтверждение", () => {
     expect(fake.writes).toEqual({});
     expect(result.output).toContain("+MAX_FILE_MB: 25");
     expect(result.output).not.toContain("[y/N]");
-    expect(result.output).toContain("подтверждение возможно только при запуске `files` одной командой в терминале");
-  });
-
-  it("REPL: /files показывает diff, но не спрашивает и не пишет, даже при TTY и ответе «y»", async () => {
-    const fake = fakeSessions();
-    const result = await run([], fake, script(editStep(), text("Предлагаю.")), `/files ${GOAL}\ny\n`);
-    expect(fake.writes).toEqual({});
-    expect(result.output).toContain("+MAX_FILE_MB: 25");
-    expect(result.output).not.toContain("Применить изменения");
-    expect(result.output).toContain("подтверждение возможно только при запуске `files` одной командой в терминале");
+    expect(result.output).toContain("подтверждение возможно только в интерактивном терминале");
   });
 
   it("файл изменился между предложением и подтверждением — пропущен, files_write не вызван", async () => {
@@ -203,6 +215,44 @@ describe("files: правки и подтверждение", () => {
     expect(fake.log).not.toContain("files_read src/limits.ts");
     expect(result.output).toContain("Правка: src/limits.ts — отклонена");
     expect(fake.writes).toEqual({});
+  });
+});
+
+describe("files: подтверждение в REPL", () => {
+  it("«y» после вопроса записывает файл, следующая строка REPL выполняется как команда", async () => {
+    const fake = fakeSessions();
+    const complete = script(editStep(), text("Предлагаю."), text("Второй ответ."));
+    const result = await runRepl(fake, complete, `y\n/files Найди withSessions\n`);
+    expect(result.error).toBe("");
+    expect(fake.writes).toEqual({ "README.md": "# Лимиты\n\nMAX_FILE_MB: 25\nMAX_FILES: 20\n" });
+    expect(result.output).toContain("Записано: README.md");
+    expect(result.output.indexOf("Записано: README.md")).toBeLessThan(result.output.indexOf("Второй ответ."));
+    expect(complete).toHaveBeenCalledTimes(3);
+  });
+
+  it("«n» после вопроса — запись не выполняется", async () => {
+    const fake = fakeSessions();
+    const result = await runRepl(fake, script(editStep(), text("Предлагаю.")), "n\n");
+    expect(fake.writes).toEqual({});
+    expect(result.output).toContain("Применить изменения (файлов: 1)? [y/N] ");
+    expect(result.output).toContain("Изменения не применены.");
+  });
+
+  it("«y», введённый до вопроса, не согласие: строка уходит в REPL, вопрос получает EOF", async () => {
+    const fake = fakeSessions();
+    const result = await run([], fake, script(editStep(), text("Предлагаю.")), `/files ${GOAL}\ny\n`);
+    expect(fake.writes).toEqual({});
+    expect(result.output).toContain("[y/N]");
+    expect(result.output).toContain("Изменения не применены.");
+  });
+
+  it("REPL без TTY: diff и сообщение, вопроса и записи нет", async () => {
+    const fake = fakeSessions();
+    const result = await run([], fake, script(editStep(), text("Предлагаю.")), `/files ${GOAL}\ny\n`, false);
+    expect(fake.writes).toEqual({});
+    expect(result.output).toContain("+MAX_FILE_MB: 25");
+    expect(result.output).not.toContain("[y/N]");
+    expect(result.output).toContain("подтверждение возможно только в интерактивном терминале");
   });
 });
 

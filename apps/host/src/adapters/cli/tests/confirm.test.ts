@@ -1,20 +1,45 @@
-import { Readable } from "node:stream";
+import { PassThrough, Readable } from "node:stream";
 import { describe, expect, it } from "vitest";
-import { isYes, readAnswer } from "../index.ts";
+import { createLineReader, isYes } from "../index.ts";
 
-describe("readAnswer", () => {
-  it("читает первую строку и не требует остального ввода", async () => {
-    expect(await readAnswer(Readable.from(["да\nвторая строка\n"]))).toBe("да");
+describe("createLineReader.question", () => {
+  it("читает первую строку; закрытие интерфейса не требует остального ввода", async () => {
+    const reader = createLineReader(Readable.from(["да\nвторая строка\n"]));
+    expect(await reader.question()).toBe("да");
+    reader.close();
   });
 
-  it("строка без перевода строки в конце тоже ответ", async () => {
-    expect(await readAnswer(Readable.from(["y"]))).toBe("y");
+  it("строка без перевода строки перед EOF не ответ: readline отдаёт её событию line", async () => {
+    expect(await createLineReader(Readable.from(["y"])).question()).toBeUndefined();
   });
 
   it("пустая строка — пустой ответ, закрытый поток — undefined", async () => {
-    expect(await readAnswer(Readable.from(["\n"]))).toBe("");
-    expect(await readAnswer(Readable.from([]))).toBeUndefined();
-    expect(await readAnswer(Readable.from([""]))).toBeUndefined();
+    expect(await createLineReader(Readable.from(["\n"])).question()).toBe("");
+    expect(await createLineReader(Readable.from([])).question()).toBeUndefined();
+    expect(await createLineReader(Readable.from([""])).question()).toBeUndefined();
+  });
+
+  it("вопрос после закрытия потока — undefined без ожидания", async () => {
+    const reader = createLineReader(Readable.from([]));
+    expect(await reader.question()).toBeUndefined();
+    expect(await reader.question()).toBeUndefined();
+  });
+
+  it("строку, пришедшую во время вопроса, получает вопрос, а не цикл строк", async () => {
+    const input = new PassThrough();
+    const reader = createLineReader(input);
+    const seen: string[] = [];
+    const loop = (async () => {
+      for await (const line of reader.lines()) {
+        seen.push(line);
+        if (line === "команда") seen.push(`ответ: ${await reader.question()}`);
+      }
+    })();
+    input.write("команда\n");
+    await new Promise((resolve) => setImmediate(resolve));
+    input.end("y\nследующая\n");
+    await loop;
+    expect(seen).toEqual(["команда", "ответ: y", "следующая"]);
   });
 });
 

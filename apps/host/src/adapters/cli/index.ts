@@ -1,10 +1,10 @@
-import { createInterface } from "node:readline";
 import type { Readable, Writable } from "node:stream";
 import { type Command, dispatch, replArguments } from "./commands.ts";
+import type { LineReader } from "./confirm.ts";
 import type { CliView } from "./view.ts";
 
 export { type Command, dispatch, replArguments } from "./commands.ts";
-export { isYes, readAnswer } from "./confirm.ts";
+export { createLineReader, isYes, type LineReader } from "./confirm.ts";
 export { describeError, InputError } from "./errors.ts";
 export { CliView, type CommandView, type ConfigRow, type FileOutcome, type HelpSetting } from "./view.ts";
 
@@ -21,6 +21,7 @@ export async function runCli(
   terminal: Terminal,
   view: CliView,
   model: string,
+  reader: LineReader,
 ): Promise<number> {
   if (argv.length > 0) {
     try {
@@ -29,16 +30,17 @@ export async function runCli(
     } catch (error) {
       view.error(error);
       return 1;
+    } finally {
+      reader.close();
     }
   }
-  const lines = createInterface({ input: terminal.input, crlfDelay: Infinity });
   let exitCode = 0;
   try {
     if (terminal.interactive) {
       view.banner(commands, model);
       view.prompt();
     }
-    for await (const line of lines) {
+    for await (const line of reader.lines()) {
       if (line.trim()) {
         try {
           if ((await dispatch(commands, replArguments(line))) === "exit") break;
@@ -50,7 +52,7 @@ export async function runCli(
       if (terminal.interactive) view.prompt();
     }
   } finally {
-    lines.close();
+    reader.close();
   }
   return exitCode;
 }

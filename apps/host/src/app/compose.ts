@@ -1,4 +1,4 @@
-import { CliView, runCli, type Terminal } from "../adapters/cli/index.ts";
+import { CliView, createLineReader, runCli, type Terminal } from "../adapters/cli/index.ts";
 import { DeepSeekModel, LocalModel } from "../adapters/llm/index.ts";
 import { withStdioToolSource } from "../features/mcp/index.ts";
 import { createAskHandler, type McpServers } from "./ask.ts";
@@ -35,7 +35,7 @@ function defaultCreateModel(options: ModelOptions) {
 
 export async function run(options: RunOptions): Promise<number> {
   let config: ResolvedConfig;
-  let repl = false;
+  const reader = createLineReader(options.terminal.input);
   const view = new CliView(options.terminal.output, options.terminal.error);
   const getConfig = () => config;
   const createModel = options.createModel ?? defaultCreateModel;
@@ -67,7 +67,7 @@ export async function run(options: RunOptions): Promise<number> {
       ...projectOptions,
       filesServer: (current) => filesServer(current, cwd, options.nodeExecutable),
     }),
-    confirm: createConfirm(options.terminal, view, () => repl),
+    confirm: createConfirm(options.terminal, view, reader),
     view,
   });
   let command: string[];
@@ -77,11 +77,10 @@ export async function run(options: RunOptions): Promise<number> {
       commands.flatMap((item) => item.aliases ?? []),
     );
     command = parsed.command;
-    repl = command.length === 0;
     config = resolveConfig(parsed.flags, options.env, options.cwd);
   } catch (error) {
     view.error(error);
     return 1;
   }
-  return runCli(commands, command, options.terminal, view, modelLabel(config));
+  return runCli(commands, command, options.terminal, view, modelLabel(config), reader);
 }
