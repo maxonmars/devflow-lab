@@ -12,6 +12,9 @@ const silentView = {
   infoAnswer: () => {},
   review: () => {},
   support: () => {},
+  filesResult: () => {},
+  filesApplied: () => {},
+  filesNotApplied: () => {},
 };
 
 /** Реестр с заглушками обработчиков: нужны только имена, аргументы и описания команд. */
@@ -25,6 +28,8 @@ function stubRegistry() {
     projectInfo: async () => ({ answer: "", fragments: [] }),
     review: async () => "",
     support: async () => "",
+    files: { plan: async () => ({ markdown: "", changes: [] }), apply: async () => [] },
+    confirm: async () => "unavailable",
     view: silentView,
   });
 }

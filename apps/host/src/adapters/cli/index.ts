@@ -4,8 +4,9 @@ import { type Command, dispatch, replArguments } from "./commands.ts";
 import type { CliView } from "./view.ts";
 
 export { type Command, dispatch, replArguments } from "./commands.ts";
+export { isYes, readAnswer } from "./confirm.ts";
 export { describeError, InputError } from "./errors.ts";
-export { CliView, type CommandView, type ConfigRow, type HelpSetting } from "./view.ts";
+export { CliView, type CommandView, type ConfigRow, type FileOutcome, type HelpSetting } from "./view.ts";
 
 export type Terminal = Readonly<{
   input: Readable;

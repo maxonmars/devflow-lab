@@ -5,12 +5,13 @@ import { createAskHandler, type McpServers } from "./ask.ts";
 import { createCommands } from "./commands.ts";
 import { parseOptions, type ResolvedConfig, resolveConfig, showConfig } from "./config.ts";
 import type { CreateEmbeddings } from "./embeddings.ts";
+import { createConfirm, createFilesHandler } from "./files.ts";
 import { createProjectInfoHandler } from "./info.ts";
 import { type CreateModel, type ModelOptions, modelLabel } from "./model.ts";
 import { createRagHandlers } from "./rag.ts";
 import { createRagAnswerHandlers } from "./ragAnswer.ts";
 import { createReviewHandler } from "./review.ts";
-import { gitServer, supportServer } from "./serverEntrypoints.ts";
+import { filesServer, gitServer, supportServer } from "./serverEntrypoints.ts";
 import { createSupportHandler } from "./support.ts";
 import type { WithToolSource } from "./toolSources.ts";
 
@@ -34,6 +35,7 @@ function defaultCreateModel(options: ModelOptions) {
 
 export async function run(options: RunOptions): Promise<number> {
   let config: ResolvedConfig;
+  let repl = false;
   const view = new CliView(options.terminal.output, options.terminal.error);
   const getConfig = () => config;
   const createModel = options.createModel ?? defaultCreateModel;
@@ -61,6 +63,11 @@ export async function run(options: RunOptions): Promise<number> {
       withToolSource,
       server: (current) => supportServer(current, cwd, options.nodeExecutable),
     }),
+    files: createFilesHandler({
+      ...projectOptions,
+      filesServer: (current) => filesServer(current, cwd, options.nodeExecutable),
+    }),
+    confirm: createConfirm(options.terminal, view, () => repl),
     view,
   });
   let command: string[];
@@ -70,6 +77,7 @@ export async function run(options: RunOptions): Promise<number> {
       commands.flatMap((item) => item.aliases ?? []),
     );
     command = parsed.command;
+    repl = command.length === 0;
     config = resolveConfig(parsed.flags, options.env, options.cwd);
   } catch (error) {
     view.error(error);

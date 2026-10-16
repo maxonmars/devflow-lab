@@ -19,6 +19,9 @@
 - `support <тикет> <вопрос...>` (app/support.ts, ADR 0004) открывает только сервер поддержки (`supportServer`, не из
   `RunOptions.mcpServers`), сам вызывает `get_ticket` и передаёт текст модели не разбирая; модель — один раз без
   инструментов, инструкция — `features/support/prompts/support.md` без `app/system.md`.
+- `files <цель...>` (app/files.ts, ADR 0005) — две фазы: `plan` (модель с `files_search`, `files_read`, git-инструментами
+  без `read_file` и локальным `propose_edit`; `files_write` скрыт `withoutTools`) и `apply` (новая сессия files-сервера
+  после `[y/N]`; подтверждение только в режиме одной команды и при TTY). Правки копятся в памяти, файлы меняет только `apply`.
 - CLI отображает AgentError, RagError и McpToolSourceError; не печатает необработанные ошибки SDK, тела ответов Ollama,
   аргументы и результаты инструментов, значения настроек.
 - Команда описывается в app/commands.ts один раз; CLI и REPL используют один dispatcher.

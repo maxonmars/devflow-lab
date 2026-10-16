@@ -141,3 +141,34 @@ it("ответ с RAG без фрагментов и неуспешный выз
       "MCP: git › git_diff — ошибка\n",
   );
 });
+
+it("ассистент файлов: ответ, служебные строки правок, вопрос и итог записи", () => {
+  const output = capture();
+  const view = new CliView(output, capture());
+  view.filesResult("Предлагаю правку.", model);
+  view.editProposal("README.md", true);
+  view.editProposal("README.md", false);
+  view.confirmPrompt("Применить изменения к 1 файлам?");
+  expect(output.text).toBe(
+    "\n── Ассистент файлов · local · qwen3 ──\n\nПредлагаю правку.\n" +
+      "Правка: README.md — принята\nПравка: README.md — отклонена\n" +
+      "\nПрименить изменения к 1 файлам? [y/N] ",
+  );
+});
+
+it("итог записи по строке на файл и причины, по которым изменения не применены", () => {
+  const output = capture();
+  const view = new CliView(output, capture());
+  view.filesApplied([
+    { path: "a.md", status: "written" },
+    { path: "b.md", status: "skipped", detail: "файл изменился после предложения правки" },
+    { path: "c.md", status: "failed", detail: "Файл не найден." },
+  ]);
+  view.filesNotApplied("declined");
+  view.filesNotApplied("unavailable");
+  expect(output.text).toBe(
+    "\n── Запись файлов ──\n\nЗаписано: a.md\nПропущено: b.md — файл изменился после предложения правки\nОшибка: c.md — Файл не найден.\n" +
+      "\n── Запись файлов ──\n\nИзменения не применены.\n" +
+      "\n── Запись файлов ──\n\nИзменения не применены: подтверждение возможно только при запуске `files` одной командой в терминале.\n",
+  );
+});

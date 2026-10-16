@@ -35,6 +35,17 @@ export function combineToolSources(sources: readonly ToolSource[]): ToolSource {
   };
 }
 
+/** Источник без указанных инструментов: модель их не видит, а вызов скрытого имени отклоняется. */
+export function withoutTools(source: ToolSource, names: readonly string[]): ToolSource {
+  return {
+    listTools: async () => (await source.listTools()).filter((tool) => !names.includes(tool.name)),
+    callTool: (invocation) => {
+      if (names.includes(invocation.name)) throw new Error("Инструмент скрыт от модели.");
+      return source.callTool(invocation);
+    },
+  };
+}
+
 /** Строка `MCP: …` на каждый реальный вызов MCP-инструмента этого источника. */
 export function observedToolSource(source: ToolSource, view: ToolStatusView, serverName: string): ToolSource {
   return {
